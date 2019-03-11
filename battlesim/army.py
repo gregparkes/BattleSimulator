@@ -10,6 +10,7 @@ import numpy as np
 
 from . import unit
 from . import utils
+from . import ai
 
 class Army(object):
     """
@@ -32,9 +33,11 @@ class Army(object):
         self
         """
         self.unit_type_ = unit_type
+        assert n > 0, "Parameter 'n' must be > 0"
         self.units_ = [unit.Unit(b, unit_type) for i in range(n)]
         # assign default pos
         self.set_loc_gaussian([0., 0.], [1., 1.])
+
         return
 
 
@@ -145,3 +148,134 @@ class Army(object):
 
     def __repr__(self):
         return "Army(type='%s', n='%d')" % (self.unit_type_, self.N_)
+
+
+
+class DelayArmy(object):
+    """
+    An army object consists of a group of Units, and allows
+    for assignment of army positions. This object does not
+    create these objects immediately but stores them for the Battle
+    object to create.
+    """
+    def __init__(self, name, N=10):
+        """
+        Create an army unit of type 'name' with N count.
+        """
+        self._name = name
+        assert N > 0, "Parameter 'N' must be > 0"
+        self._N = N
+        # defaults
+        self._pos_type = "gaussian"
+        self._pos_params = {"loc":[0., 0.], "scale":[1., 1.]}
+        self._ai_func = "random"
+        self._idx_range = None
+
+    def _get_N(self):
+        return self._N
+
+    def _get_name(self):
+        return self._name
+
+    def _assign_position(self):
+        return {self._pos_type: self._pos_params}
+
+    def _get_target_ai(self):
+        return self._ai_func
+
+    def _get_index_range(self):
+        return self._idx_range
+
+    def _set_index_range(self, idx_range):
+        self._idx_range = idx_range
+
+    N_ = property(_get_N)
+    name_ = property(_get_name)
+    pos_ = property(_assign_position)
+    ai_ = property(_get_target_ai)
+    index_range_ = property(_get_index_range, _set_index_range)
+
+    ################## FUNCTIONS ####################################
+
+    def set_loc_gaussian(self, mean, sd):
+        """
+        Allocate Unit positions based on a gaussian distribution (centred around
+        the mean).
+
+        Parameters
+        -------
+        mean : np.ndarray (2,)
+            the mean for x [0] and y[1] position
+        sd : np.ndarray (2,)
+            the standard deviation for x[0] and y[1] position
+
+        Returns
+        -------
+        self
+        """
+        self._pos_type = "gaussian"
+        self._pos_params = {"loc":list(mean), "scale":list(sd)}
+        return self
+
+
+    def set_loc_grid(self, xlim, ylim, theta=0.):
+        """
+        Allocate Unit positions based on a uniform grid (with an optional rotation).
+
+        Parameters
+        -------
+        xlim : tuple, list (2,)
+            The lower and upper bounds of the x axis
+        ylim : tuple, list (2,)
+            The lower and upper bounds of the y axis
+        theta : float
+            The amount of rotation to apply to the grid (optional)
+
+        Returns
+        -------
+        self
+        """
+        self._pos_type = "grid"
+        self._pos_params = {"xlim":list(xlim), "ylim":list(ylim), "theta":theta}
+        return self
+
+
+    def set_ai_target(self, ai_func):
+        """
+        Choose the AI algorithm to target enemies.
+
+        Parameters
+        -------
+        ai_func : function
+            The function from the .ai package to use.
+        """
+        accepted_ai = ["random", "nearest"]
+        if ai_func not in accepted_ai:
+            raise ValueError("'{}' not found in accepted ai".format(ai_func))
+
+        self._ai_func = ai_func
+        return self
+
+
+    def set_ai_initial(self, ai_init_func):
+        """
+        Choose the AI algorithm to find an initial target.
+
+        Parameters
+        -------
+        ai_init_func : str
+            The function from the .ai package to use.
+        """
+
+        accepted_ai = ["random", "nearest"]
+
+        if ai_init_func not in accepted_ai:
+            raise ValueError("'{}' not found in accepted ai".format(ai_init_func))
+
+        self._ai_init_func = ai_init_func
+        return self
+
+
+    def __repr__(self):
+        return "DelayArmy(type='%s', n='%d', pos='%s')" % (self._name, self._N, self._pos_type)
+

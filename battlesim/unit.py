@@ -29,7 +29,7 @@ class Unit(object):
         self
         """
         # extract db from b.
-        self.db = b.db
+        self.db = b._db
         if utype is None:
             # choose first.
             self.unit_type_ = self.db.index[0]

@@ -9,7 +9,7 @@ import numpy as np
 from . import utils
 
 
-__all__ = ["init_ai_random", "init_ai_nearest",
+__all__ = ["init_ai_random","init_ai_random2", "init_ai_nearest","init_ai_nearest2",
            "ai_random", "ai_nearest", "ai_nearest_with_hp"]
 
 ############## AI FUNCTIONS ##############################
@@ -31,6 +31,18 @@ def init_ai_random(units):
     return
 
 
+def init_ai_random2(army, allegiance):
+    """
+    Given an Allegiance vector, assign a unit to the selected unit (index)
+
+    Returns an array
+    """
+    N = army.index_range_[1]-army.index_range_[0]
+    # find targets based on any not matched to the selected unit.
+    targets = np.argwhere(allegiance != allegiance[army.index_range_[0]]).T[0]
+    return np.random.choice(targets, size=(N,))
+
+
 def init_ai_nearest(units):
     """
     Given a list of units, get each unit to select the nearest enemy.
@@ -46,6 +58,20 @@ def init_ai_nearest(units):
     for c in ciss:
         mags = [utils.magnitude(c.pos_ - u.pos_) for u in republics]
         c.target_ = republics[np.argmin(mags)]
+    return
+
+def init_ai_nearest2(army, allegiance, pos):
+    """
+    Given an Allegiance vector, assign a unit to the selected unit
+    based on euclidean distance (index)
+
+    Returns an array
+    """
+    allg = allegiance[army.index_range_[0]]
+    i,j = army.index_range_
+
+    pass
+
     return
 
 

@@ -22,5 +22,27 @@ def first_simulation():
 
     return sim
 
+
+def first_sim_without():
+    b = bsm.Battle("../datasets/starwars-clonewars.csv")
+    a1 = bsm.Army(b, "B1 battledroid", 50)
+    a2 = bsm.Army(b, "Clone Trooper", 30)
+    sim = bsm.simulate_battle([a1, a2], max_timestep=200)
+    return sim
+
+
+def simulation_by_delay():
+    b = bsm.Battle("../datasets/starwars-clonewars.csv")
+    # is initialised
+    b.add(bsm.DelayArmy("B1 battledroid", 50))
+    b.add([bsm.DelayArmy("B1 battledroid", 100), bsm.DelayArmy("Clone Trooper",50)])
+    # initialsie
+    b.instantiate()
+    return b
+
+
 if __name__ == '__main__':
     sim = first_simulation()
+    sim2 = first_sim_without()
+    #b = simulation_by_delay()
+    bsm.quiver_fight(sim)

@@ -107,3 +107,6 @@ def simulate_battle(armies,
     else:
         return {"republic": sum([u.alive_ for u in units if u.allegiance_int_ == 0]),
          "cis": sum([u.alive_ for u in units if u.allegiance_int_ == 1])}
+
+
+

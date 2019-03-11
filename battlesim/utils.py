@@ -26,6 +26,38 @@ def direction_norm(my_unit):
     return v / magnitude(v)
 
 
+def positions_from_spec(pos_dict, N):
+    """
+    Given the dictionary:
+        {"gaussian": {"mean": [0., 0.], "sd": [1., 1.]}}
+    or similar from grid, plus N, return N random locations.
+    """
+    ktype = list(pos_dict.keys())[0]
+    if ktype == "gaussian":
+        pos_dict["gaussian"]["size"] = (N,2)
+        # unpack pos dictionary terms into normal
+        pos = np.random.normal(**pos_dict["gaussian"])
+    elif ktype == "grid":
+        # converts theta (degrees) into radians
+        theta = pos_dict["grid"]["theta"] * (np.pi/180.)
+        # create rotation matrix
+        R = np.array([[np.cos(theta), np.sin(theta)], [-np.sin(theta), np.cos(theta)]])
+        factors = np.sort(factor(N))
+        nx = factors[len(factors)//2]
+        ny = N // nx
+        # create a 'grid of points'
+        X, Y = grid_of_points(pos_dict["grid"]["xlim"],
+                              pos_dict["grid"]["ylim"],
+                              nx,
+                              ny)
+        # stack X, Y together, then rotate with R
+        XY = np.vstack((X.reshape(N, order="F"), Y.reshape(N, order="F")))
+        pos = np.dot(R, XY).transpose()
+    else:
+        raise ValueError("ktype '{}' not recognised".format(ktype))
+    return pos
+
+
 def units_from_armies(armies):
     """
     Given a list of Army objects, return a list of Unit objects.
