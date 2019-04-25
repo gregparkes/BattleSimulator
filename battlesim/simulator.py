@@ -75,6 +75,8 @@ def simulate_battle(armies,
         stepwise_simulate.append(extract_frame(units, 0))
 
     while (t < max_timestep) and running:
+        # get the alive units list per allegiance.
+        
         # iterate over every unit and get them to do something.
         for i, unit in enumerate(units):
             # only do something if the unit is alive.
