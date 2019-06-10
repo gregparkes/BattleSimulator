@@ -75,8 +75,6 @@ def simulate_battle(armies,
         stepwise_simulate.append(extract_frame(units, 0))
 
     while (t < max_timestep) and running:
-        # get the alive units list per allegiance.
-        
         # iterate over every unit and get them to do something.
         for i, unit in enumerate(units):
             # only do something if the unit is alive.
@@ -90,7 +88,7 @@ def simulate_battle(armies,
                 dir_vector = unit.target_.pos_ - unit.pos_
                 dist = np.sqrt(np.dot(dir_vector,dir_vector))
                 # if not in range, move towards the target
-                if dist > unit.range_:
+                if dist > unit.range_ or np.random.rand() < 0.2:
                     # adjust position, using normalised velocity vector and movement spped
                     unit.pos_ += unit.move_speed_ * (dir_vector / dist)
                 else:
@@ -109,6 +107,3 @@ def simulate_battle(armies,
     else:
         return {"republic": sum([u.alive_ for u in units if u.allegiance_int_ == 0]),
          "cis": sum([u.alive_ for u in units if u.allegiance_int_ == 1])}
-
-
-

@@ -65,6 +65,10 @@ def units_from_armies(armies):
     return list(it.chain.from_iterable([a.units_ for a in armies]))
 
 
+def distance(u1, u2):
+    return np.sqrt(np.dot(u1.pos_ - u2.pos_, u1.pos_ - u2.pos_))
+
+
 def grid_of_points(xlim, ylim, nx, ny):
     x = np.linspace(xlim[0], xlim[1], nx)
     y = np.linspace(ylim[0], ylim[1], ny)

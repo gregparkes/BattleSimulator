@@ -9,8 +9,8 @@ import numpy as np
 from . import utils
 
 
-__all__ = ["init_ai_random","init_ai_random2", "init_ai_nearest","init_ai_nearest2",
-           "ai_random", "ai_nearest"]
+__all__ = ["init_ai_random","init_ai_random2", "init_ai_nearest",
+           "ai_random", "ai_nearest", "ai_weakest"]
 
 ############## AI FUNCTIONS ##############################
 
@@ -97,3 +97,21 @@ def ai_nearest(units, selected_unit):
     else:
         return False
 
+
+def ai_weakest(units, selected_unit):
+    """
+    This AI algorithm works by giving the 'selected unit' a new target based
+    on which enemy has the lowest HP.
+    """
+    # assign from enemy pool
+    alive_enemies = [u for u in units if
+                     (u.allegiance_int_ != selected_unit.allegiance_int_)
+                     and (u.alive_)]
+    if len(alive_enemies) > 0:
+        # find enemy with minimum HP
+        amin = [u.curr_hp_ for u in alive_enemies]
+        # set target
+        selected_unit.target_ = alive_enemies[np.argmin(amin)]
+        return True
+    else:
+        return False

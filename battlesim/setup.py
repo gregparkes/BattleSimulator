@@ -6,7 +6,7 @@ from setuptools import setup, find_packages
 
 setup(
 	name="battlesim",
-	version="0.1.2",
+	version="0.1.3",
 	description="A python package for simulating battles and visualizing them in animation",
 	url="https://github.com/gregparkes/battlesim",
 	author="Gregory Parkes",
@@ -15,7 +15,7 @@ setup(
 	packages=find_packages(),
 	zip_safe=False,
 	install_requires=[
-		"numpy","pandas","matplotlib","seaborn"
+		"numpy","pandas","matplotlib"
 	],
 	classifiers=[
 		"Natural Language :: English",

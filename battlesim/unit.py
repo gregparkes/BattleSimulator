@@ -7,7 +7,6 @@ Created on Fri Feb 22 14:23:43 2019
 """
 import numpy as np
 
-
 class Unit(object):
     """
     Here we create an instance of a generic 'Unit' that can be used.
@@ -115,7 +114,6 @@ class Unit(object):
     accuracy_ = property(_get_accuracy)
     damage_ = property(_get_primary_damage)
     ai_ = property(_get_ai, _set_ai)
-
 
     def set_params(self, unit_type=None):
         """
