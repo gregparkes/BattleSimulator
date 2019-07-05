@@ -7,8 +7,7 @@ Created on Tue Feb 19 15:48:25 2019
 """
 import pandas as pd
 import numpy as np
-import itertools as it
-import copy
+from numba import jit
 
 from . import ai
 from . import utils
@@ -31,79 +30,100 @@ def extract_frame(units, i):
     })
 
 
-def simulate_battle(armies,
-                    max_timestep=100,
-                    ret_step=True,
-                    acc_penalty=15.,
-                    ai_func=ai.ai_random,
-                    init_func=ai.init_ai_random):
+def _convert_to_pandas(frames):
     """
-    Given a list of Army groups - simulate a battle!
+    Given the 'frames' from fast_simulate_battle, return a pd.Dataframe
+    """
+    steps, units = frames.shape
+    DF = pd.concat([pd.DataFrame({
+        "frame": frames["frame"][s], "allegiance": frames["team"][s], "alive": frames["hp"][s] > 0,
+        "x": frames["pos"][s][:,0], "y": frames["pos"][s][:,1], "dir_x": frames["dpos"][s][:,0],
+        "dir_y": frames["dpos"][s][:,1]
+    }) for s in range(steps)])
+    return DF
+
+
+@jit(nopython=True)
+def _direction_norm(dir_vec):
+    mag = np.sqrt(np.sum(dir_vec**2, axis=1))
+    return (dir_vec.T/mag).T
+
+
+def simulate_battle(M, max_step=100, acc_penalty=15., M_threshold=5000):
+    """
+    Given a Numpy Matrix of units, simulate a fight.
 
     Parameters
-    -------
-    armies : list of Army
-        A set of armies to clash against each other.
-    max_timestep : int
-        The number max of steps to walk before stopping
-    ret_step : bool
-        If false, we only return the result of the fight, not stepwise results dataframe
+    --------
+    M : np.ndarray (units, )
+        A matrix containing data values
+    max_step : int
+        The maximum number of steps
     acc_penalty : float
-        The distance penalty to apply to units
-    ai_func : function
-        The AI program all units will assign targets on
-    init_func : function
-        The AI program all units initialise assign targets on
+        Penalties applied to global accuracy
+    M_threshold : int
+        Threshold before we start calculating global targeting
 
     Returns
     -------
-    stepwise_simulate : list
-        list of pd.DataFrame results.
+    frames : np.ndarray (frame, )
+        Each frame is a numpy.ndmatrix.
     """
-    # initialise
     t = 0
     running = True
-    # collapse the armies down into unit lists.
-    units = copy.deepcopy(list(it.chain.from_iterable([a.units_ for a in armies])))
+    teams = np.unique(M["team"])
 
-    # initialise enemy unit choice, using init() algorithm
-    init_func(units)
+    frames = np.zeros(
+            (max_step, M.shape[0]),
+            dtype=[("frame", int, 1), ("pos", float, 2), ("target", int, 1),
+                   ("hp", float, 1), ("dpos", float, 2), ("team", int, 1),
+            ]
+    )
 
-    if ret_step:
-        stepwise_simulate = []
-        # add the first frame with no movement.
-        stepwise_simulate.append(extract_frame(units, 0))
+    def add_frame(M, i):
+        # copy over data from M into frames.
+        frames["frame"][i] = i
+        frames["pos"][i] = M["pos"]
+        frames["target"][i] = M["target"]
+        frames["hp"][i] = M["hp"]
+        # create direction norm
+        dnorm = _direction_norm(M["pos"][M["target"]] - M["pos"])
+        frames["dpos"][i] = dnorm
+        frames["team"][i] = M["team"]
+        return
 
-    while (t < max_timestep) and running:
-        # iterate over every unit and get them to do something.
-        for i, unit in enumerate(units):
-            # only do something if the unit is alive.
-            if unit.alive_:
-                # check to see if it's target is alive.
-                if not unit.target_.alive_:
+    add_frame(M, 0)
+
+    while (t < max_step) and running:
+
+        group_vec = M["pos"][M["target"]] - M["pos"]
+        dists = np.sqrt(np.sum((group_vec)**2, axis=1))
+
+        # if M is large, pre-compute target matrices at each time t rather than on each unit.
+        if M.shape[0] > M_threshold:
+            valid_targets = [np.argwhere((M["hp"]>0) & (M["team"]!=T)).flatten() for T in teams]
+
+        for i in range(M.shape[0]):
+            if M["hp"][i] > 0.:
+                if M["hp"][M["target"][i]] <= 0.:
                     # assign new target
-                    if not ai_func(units, unit):
-                        running = False
-                # calculate distance from target
-                dir_vector = unit.target_.pos_ - unit.pos_
-                dist = np.sqrt(np.dot(dir_vector,dir_vector))
-                # if not in range, move towards the target
-                if dist > unit.range_ or np.random.rand() < 0.2:
-                    # adjust position, using normalised velocity vector and movement spped
-                    unit.pos_ += unit.move_speed_ * (dir_vector / dist)
+                    if M.shape[0]>M_threshold and valid_targets[M["team"][i]].shape[0] > 0:
+                        M["target"][i] = np.random.choice(valid_targets[M["team"][i]])
+                    else:
+                        T = ai.assign_random_target(M, i)
+                        if T == -1:
+                            running=False
+                        else:
+                            M["target"][i] = T
+                # if not in range, move towards target
+                if dists[i] > M["range"][i] or np.random.rand() < .2:
+                    # move unit.
+                    M["pos"][i] += M["speed"][i] * (group_vec[i] / dists[i])
                 else:
-                    # just attack
-                    # also factor in distance when calculating hit chance - further away reduces hit
-                    hit_chance = unit.accuracy_ * (1. - unit.target_.dodge_) * (1. - dist / acc_penalty)
-                    if hit_chance > np.random.rand():
-                        unit.target_.curr_hp_ -= unit.damage_
-
+                    hit = M["acc"][i] * (1. - M["dodge"][i]) * (1. - dists[i] / acc_penalty)
+                    if hit > np.random.rand():
+                        M["hp"][M["target"][i]] -= M["dmg"][i]
         t += 1
-        if ret_step:
-            stepwise_simulate.append(extract_frame(units, t))
+        add_frame(M, t)
 
-    if ret_step:
-        return pd.concat(stepwise_simulate, sort=False)
-    else:
-        return {"republic": sum([u.alive_ for u in units if u.allegiance_int_ == 0]),
-         "cis": sum([u.alive_ for u in units if u.allegiance_int_ == 1])}
+    return _convert_to_pandas(frames[:t])

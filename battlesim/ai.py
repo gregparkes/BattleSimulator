@@ -6,11 +6,12 @@ Created on Fri Feb 22 14:27:05 2019
 @author: gparkes
 """
 import numpy as np
+from numba import jit
 from . import utils
 
 
 __all__ = ["init_ai_random","init_ai_random2", "init_ai_nearest",
-           "ai_random", "ai_nearest", "ai_weakest"]
+           "ai_random", "ai_nearest"]
 
 ############## AI FUNCTIONS ##############################
 
@@ -97,21 +98,12 @@ def ai_nearest(units, selected_unit):
     else:
         return False
 
-
-def ai_weakest(units, selected_unit):
-    """
-    This AI algorithm works by giving the 'selected unit' a new target based
-    on which enemy has the lowest HP.
-    """
-    # assign from enemy pool
-    alive_enemies = [u for u in units if
-                     (u.allegiance_int_ != selected_unit.allegiance_int_)
-                     and (u.alive_)]
-    if len(alive_enemies) > 0:
-        # find enemy with minimum HP
-        amin = [u.curr_hp_ for u in alive_enemies]
-        # set target
-        selected_unit.target_ = alive_enemies[np.argmin(amin)]
-        return True
+@jit
+def assign_random_target(M, i):
+    # where HP of target is not zero (not dead) and the team value is not the same as the current guy.
+    candidates = np.argwhere((M["hp"]>0) & (M["team"]!=M["team"][i])).flatten()
+    # draw a candidate
+    if candidates.shape[0] > 0:
+        return np.random.choice(candidates)
     else:
-        return False
+        return -1

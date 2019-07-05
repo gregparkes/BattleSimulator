@@ -1,184 +1,111 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
+Created on Fri Jul  5 17:39:42 2019
+
 @author: gparkes
 """
-import numpy as np
-import pandas as pd
 
-from .army import Army, DelayArmy
-from . import ai
+import numpy as np
+import itertools as it
+
 from . import utils
+from . import simulator
 
 
 class Battle(object):
     """
-    The Battle object provides a context for a single or multiple battles in a
-    row using simular parameters.
+    This 'Battle' object provides the interface for the user of simulating
+    a number of Battles.
 
-    For instance, a user may do something like:
-
-    with Battle('name of unit scoring file') as b:
-        # create armies
-        # run simulation
-
-    # plot animation
+    Each simulation follows a:
+        Load -> Create -> Simulate -> Draw
+    flow.
     """
 
-    def __init__(self, score_file, delayed=True):
+    def __init__(self, dbfilepath):
         """
-        Initialise a Battle object, and pass in the relevant scoring file.
+        Instantiate this object with a filepath leading to
+        """
+        assert isinstance(dbfilepath, str), "dbfilepath must be of type ('str')"
+        self.db_ = utils.import_and_check_unit_file(dbfilepath)
+        self.M_ = None
+        self.ai_ = "random"
+        self.start_ai_ = "random"
+
+
+    """---------------------- FUNCTIONS --------------------"""
+
+    def create_army(self, army_set):
+        """
+        Armies are groupings of (<'Unit Type'>, <number of units>). You can
+        create one or more of these.
+
+        We make use of the dataset (`db`) with army_set.
+
+        We create the 'M' matrix, which is directly fed into any 'simulation' function.
 
         Parameters
         -------
-        score_file : str
-            A link to a unit-scores.csv file.
-        delayed : bool
-            If True, objects passed in Battle.add() are given data.
-        """
-        # set the filepath. do nothing else.
-        self.fpath = score_file
-        self._load()
-        self._delayed = delayed
-        self._unit_names = set(self._db.index)
-        self._unit_to_idx = dict(zip(self._db.index, range(self._db.shape[0])))
-        self._armies = []
-        self._instantiated = False
+        army_set : list of 2-tuple
+            A list of 'army groups' given as ('Unit Type', number of units)
 
-
-    def __enter__(self):
-        return self._load()
-
-
-    def __exit__(self, type, value, traceback):
-        # do nothing
-        pass
-
-    ########################### PROPERTIES #######################
-
-    def _get_armies(self):
-        return self._armies
-
-    def _get_instantiation(self):
-        return self._instantiated
-
-    units_ = property(_get_armies)
-    instance_ = property(_get_instantiation)
-
-    def _load(self):
-        """
-        Initialise the Battle object using the filepath provided.
-        """
-        self._db = utils.import_and_check_unit_file(self.fpath)
-        # set name to index
-        self._db.set_index("Name", inplace=True)
-        self._db["allegiance_int"] = pd.factorize(self._db.Allegiance)[0]
-        return self
-
-
-    def add(self, armies):
-        """
-        Add DelayArmy objects to the roster of the fight.
-
-        Parameters
-        -------
-        armies : list of Unit, Army or DelayArmy
-            The groups of objects used to define the fight group.
-
-        Returns
+        Returns self
         -------
         self
         """
-        if isinstance(armies, (DelayArmy)):
-            # convert to a list
-            armies = [armies]
-        elif isinstance(armies, (list, tuple)):
-            pass
-        else:
-            raise ValueError("armies is type '{}', must be list or tuple".format(type(armies)))
-        # extend the armies list
-        # check that every element in the list is a Unit, Army or DelayArmy
-        assert sum([isinstance(a, DelayArmy) for a in armies]) == len(armies), "Err: not all elements are 'DelayArmy' type"
-        self._armies.extend(armies)
+        #assign
+        assert isinstance(army_set, (list, tuple)), "army_set must be of type ('list','tuple')"
+        self.army_set_ = army_set
+        self.N_ = sum([arm[1] for arm in army_set])
+
+        self.M_ = np.zeros((self.N_), dtype=[
+            ("team",int,1),("pos",float,2),("hp",float,1),
+            ("range",float,1),("speed",float,1),("acc",float,1),
+            ("dodge",float,1),("dmg",float,1),("target",int,1)
+        ])
+
+        segments = utils.get_segments(army_set)
+        allg = np.asarray([self.db_.loc[U[0],"allegiance_int"] for U in army_set])
+
+        # set initial values.
+        for (u, n), (start, end), team in zip(army_set, segments, allg):
+            self.M_["team"][start:end] = team
+            self.M_["hp"][start:end] = self.db_.loc[u,"HP"]
+            self.M_["range"][start:end] = self.db_.loc[u,"Range"]
+            self.M_["speed"][start:end] = self.db_.loc[u,"Movement Speed"]
+            self.M_["dodge"][start:end] = self.db_.loc[u,"Miss"]/100.
+            self.M_["acc"][start:end] = self.db_.loc[u,"Accuracy"]/100.
+            self.M_["dmg"][start:end] = self.db_.loc[u,"Damage"]
+            # random target - first we filter out segments in our team, then unpack xegment tuple into numpy.arange, then cat together indices.
+            targets = np.hstack([np.arange(*(s[1]))
+                for s in it.filterfalse(lambda x: x[0]==team, zip(allg, segments))])
+            self.M_["target"][start:end] = np.random.choice(targets, size=(n,))
+
         return self
 
 
-    def instantiate(self):
+    def assign_positions(self, pos_set):
         """
-        Instantiates the 'Battle' object given the Armies and Units assigned to it,
-        using the linked unit-scores. Should create Matrix objects to use in any
-        resulting 'simulation' function.
+        Assign positions given as (mean, var) for gaussian locations for each
+        army set.
 
-        We create two 'changeable' matrices with the following columns:
-            (float)
-            0 - HP
-            1 - X
-            2 - Y
-            3 - dX
-            4 - dY
-
-            (int)
-            0 - Target index
-
-        We also create two 'static' matrices with the following columns:
-            (float)
-            0 - Move speed
-            1 - Accuracy
-            2 - Damage
-            3 - Dodge
-            4 - Range
-
-            (integers)
-            0 - Allegiance
-            1 - AI type
+        Returns self
         """
-        N = sum([a.N_ for a in self._armies])
-        # create an 'index range' for each army.
-        cum_N = np.cumsum(np.array([a.N_ for a in self._armies]))
-        ranges = list(zip(cum_N-self._armies[0].N_, cum_N))
-        for i, r in enumerate(ranges):
-            self._armies[i].index_range_ = r
-
-        st_fdict = dict(zip(["Movement Speed","Accuracy","Damage","Miss","Range"], range(5)))
-        ai_dict = dict(zip(["random", "nearest"], range(2)))
-
-        self.ch_f = np.zeros((N,5))
-        self.ch_i = np.zeros((N,), dtype=np.int)
-        self.st_f = np.zeros((N,5))
-        self.st_i = np.zeros((N,2), dtype=np.int)
-
-        # fill based on armies
-        # HP
-        self.ch_f[:,0] = np.hstack([
-            np.repeat(self._db.loc[a.name_].HP, a.N_) for a in self.units_
-        ])
-        # use an algorithm to assign X and Y for each army, given it's position params
-        self.ch_f[:,1:3] = np.vstack([utils.positions_from_spec(a.pos_, a.N_)
-            for a in self.units_])
-
-        # static matrices
-        for col, ids in st_fdict.items():
-            self.st_f[:,ids] = np.hstack([
-                np.repeat(self._db.loc[a.name_][col], a.N_) for a in self.units_
-            ])
-
-        self.st_i[:,0] = np.hstack([
-            np.repeat(self._db.loc[a.name_].allegiance_int, a.N_) for a in self.units_
-        ])
-        self.st_i[:,1] = np.hstack([
-            np.repeat(ai_dict[a.ai_],a.N_) for a in self.units_
-        ])
-
-        # fetch a healthy target for each unit using allegiance positions
-        self.ch_i = np.hstack([ai.init_ai_random2(a,self.st_i[:,0])
-            for a in self.units_])
-
-        # assign dX and dY direction based on a chosen target.
-        self._instantiated = True
-
-        return NotImplemented
+        self.gauss = pos_set
+        segments = utils.get_segments(self.army_set_)
+        for (u, n), (mean, var), (start, end) in zip(self.army_set_, pos_set, segments):
+            self.M_["pos"][start:end] = np.random.normal(mean, var, size=(n,2))
+        return self
 
 
-    def __repr__(self):
-        return "Battle(n='%d')" % (sum([a.N_ for a in self._armies]))
+    def simulate(self, **kwargs):
+        """
+        Runs the 'simulate_battle' algorithm. Creates and passes a copy to simulate..
+
+        Returns pd.DataFrame of frames.
+        """
+        return simulator.simulate_battle(np.copy(self.M_), **kwargs)
+
+    """ ---------------------- MISC ------------------------------ """
 
