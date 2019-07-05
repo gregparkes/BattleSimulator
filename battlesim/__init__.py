@@ -9,5 +9,5 @@ from .ai import *
 from .imageplot import *
 from .utils import *
 
-__version__ = "0.1.5"
+__version__ = "0.1.6"
 __name__ = "battlesim"

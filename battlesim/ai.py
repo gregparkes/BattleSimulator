@@ -10,11 +10,12 @@ from numba import jit
 from . import utils
 
 
-__all__ = ["init_ai_random","init_ai_random2", "init_ai_nearest",
-           "ai_random", "ai_nearest"]
+__all__ = ["assign_random_target"]
+
 
 ############## AI FUNCTIONS ##############################
 
+@utils.deprecated
 def init_ai_random(units):
     """
     Given a list of units, get each unit to randomly select an enemy.
@@ -31,7 +32,7 @@ def init_ai_random(units):
         cu.target_ = republics[rnd]
     return
 
-
+@utils.deprecated
 def init_ai_random2(army, allegiance):
     """
     Given an Allegiance vector, assign a unit to the selected unit (index)
@@ -43,7 +44,7 @@ def init_ai_random2(army, allegiance):
     targets = np.argwhere(allegiance != allegiance[army.index_range_[0]]).T[0]
     return np.random.choice(targets, size=(N,))
 
-
+@utils.deprecated
 def init_ai_nearest(units):
     """
     Given a list of units, get each unit to select the nearest enemy.
@@ -61,7 +62,7 @@ def init_ai_nearest(units):
         c.target_ = republics[np.argmin(mags)]
     return
 
-
+@utils.deprecated
 def ai_random(units, selected_unit):
     """
     This AI algorithm works by giving the 'selected_unit' a new target at random.
@@ -78,7 +79,7 @@ def ai_random(units, selected_unit):
     else:
         return False
 
-
+@utils.deprecated
 def ai_nearest(units, selected_unit):
     """
     This AI algorithm works by giving the 'selected_unit' a new target based solely

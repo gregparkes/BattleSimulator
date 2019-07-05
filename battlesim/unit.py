@@ -6,7 +6,9 @@ Created on Fri Feb 22 14:23:43 2019
 @author: gparkes
 """
 import numpy as np
+from . import utils
 
+@utils.deprecated
 class Unit(object):
     """
     Here we create an instance of a generic 'Unit' that can be used.

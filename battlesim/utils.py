@@ -8,9 +8,26 @@ Created on Fri Feb 22 14:27:46 2019
 import os
 import itertools as it
 import pandas as pd
+import functools
+import warnings
 
 
-__all__ = ["factor", "import_and_check_unit_file"]
+__all__ = ["import_and_check_unit_file"]
+
+
+def deprecated(func):
+    """This is a decorator which can be used to mark functions
+    as deprecated. It will result in a warning being emitted
+    when the function is used."""
+    @functools.wraps(func)
+    def new_func(*args, **kwargs):
+        warnings.simplefilter('always', DeprecationWarning)  # turn off filter
+        warnings.warn("Call to deprecated function {}.".format(func.__name__),
+                      category=DeprecationWarning,
+                      stacklevel=2)
+        warnings.simplefilter('default', DeprecationWarning)  # reset filter
+        return func(*args, **kwargs)
+    return new_func
 
 
 def factor(n):

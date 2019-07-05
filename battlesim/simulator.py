@@ -17,19 +17,6 @@ from . import utils
 __all__ = ["simulate_battle"]
 
 
-def extract_frame(units, i):
-    # calculate magnitudes for targets
-    return pd.DataFrame({
-        "frame": i,
-        "x": [u.x_ for u in units],
-        "y": [u.y_ for u in units],
-        "alive": [u.alive_ for u in units],
-        "allegiance": [u.allegiance_int_ for u in units],
-        "dir_x": [utils.direction_norm(u)[0] for u in units],
-        "dir_y": [utils.direction_norm(u)[1] for u in units]
-    })
-
-
 def _convert_to_pandas(frames):
     """
     Given the 'frames' from fast_simulate_battle, return a pd.Dataframe
