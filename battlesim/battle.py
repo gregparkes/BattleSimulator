@@ -8,9 +8,11 @@ Created on Fri Jul  5 17:39:42 2019
 
 import numpy as np
 import itertools as it
+from scipy import stats
 
 from . import utils
 from . import simulator
+from .distributions import Distribution
 
 
 class Battle(object):
@@ -30,8 +32,6 @@ class Battle(object):
         assert isinstance(dbfilepath, str), "dbfilepath must be of type ('str')"
         self.db_ = utils.import_and_check_unit_file(dbfilepath)
         self.M_ = None
-        self.ai_ = "random"
-        self.start_ai_ = "random"
 
 
     """---------------------- FUNCTIONS --------------------"""
@@ -85,14 +85,37 @@ class Battle(object):
         return self
 
 
-    def assign_positions(self, pos_set):
+    def position_from_dist(self, distributions):
+        """
+        Assign locations to each 'army set' using a distribution from the battlesim.Distribution object.
+
+        Parameters
+        -------
+        distributions : battlesim.Distribution or list of battlesim.Distribution.
+            The distribution(s) corresponding to each group.
+
+        Returns
+        -------
+        self
+        """
+        segments = utils.get_segments(self.army_set_)
+        if isinstance(distributions, Distribution):
+            for (u, n), (start, end) in zip(self.army_set_, segments):
+                self.M_["pos"][start:end] = distributions.sample(n)
+        else:
+            for (u, n), (start, end), d in zip(self.army_set_, segments, distributions):
+                self.M_["pos"][start:end] = d.sample(n)
+        return self
+
+
+    @utils.deprecated
+    def position_gaussian(self, pos_set):
         """
         Assign positions given as (mean, var) for gaussian locations for each
         army set.
 
         Returns self
         """
-        self.gauss = pos_set
         segments = utils.get_segments(self.army_set_)
         for (u, n), (mean, var), (start, end) in zip(self.army_set_, pos_set, segments):
             self.M_["pos"][start:end] = np.random.normal(mean, var, size=(n,2))

@@ -10,7 +10,7 @@ from numba import jit
 from . import utils
 
 
-__all__ = ["assign_random_target"]
+__all__ = ["assign_random_precompute", "assign_nearest"]
 
 
 ############## AI FUNCTIONS ##############################
@@ -31,18 +31,6 @@ def init_ai_random(units):
     for rnd,cu in zip(rng, ciss):
         cu.target_ = republics[rnd]
     return
-
-@utils.deprecated
-def init_ai_random2(army, allegiance):
-    """
-    Given an Allegiance vector, assign a unit to the selected unit (index)
-
-    Returns an array
-    """
-    N = army.index_range_[1]-army.index_range_[0]
-    # find targets based on any not matched to the selected unit.
-    targets = np.argwhere(allegiance != allegiance[army.index_range_[0]]).T[0]
-    return np.random.choice(targets, size=(N,))
 
 @utils.deprecated
 def init_ai_nearest(units):
@@ -99,12 +87,21 @@ def ai_nearest(units, selected_unit):
     else:
         return False
 
-@jit
-def assign_random_target(M, i):
-    # where HP of target is not zero (not dead) and the team value is not the same as the current guy.
-    candidates = np.argwhere((M["hp"]>0) & (M["team"]!=M["team"][i])).flatten()
+
+@jit(nopython=True)
+def assign_random_precompute(candidates):
     # draw a candidate
     if candidates.shape[0] > 0:
         return np.random.choice(candidates)
+    else:
+        return -1
+
+@jit
+def assign_nearest(candidates, M, i):
+    if candidates.shape[0] > 0:
+        # compute distances/magnitudes
+        distances = M["pos"][i] - M["pos"][candidates]
+        mags = np.sqrt(np.sum((distances)**2, axis=1))
+        return candidates[np.argmin(mags)]
     else:
         return -1

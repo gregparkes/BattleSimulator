@@ -36,7 +36,7 @@ def _direction_norm(dir_vec):
     return (dir_vec.T/mag).T
 
 
-def simulate_battle(M, max_step=100, acc_penalty=15., M_threshold=5000):
+def simulate_battle(M, max_step=100, acc_penalty=15.):
     """
     Given a Numpy Matrix of units, simulate a fight.
 
@@ -48,8 +48,6 @@ def simulate_battle(M, max_step=100, acc_penalty=15., M_threshold=5000):
         The maximum number of steps
     acc_penalty : float
         Penalties applied to global accuracy
-    M_threshold : int
-        Threshold before we start calculating global targeting
 
     Returns
     -------
@@ -61,7 +59,7 @@ def simulate_battle(M, max_step=100, acc_penalty=15., M_threshold=5000):
     teams = np.unique(M["team"])
 
     frames = np.zeros(
-            (max_step, M.shape[0]),
+            (max_step+1, M.shape[0]),
             dtype=[("frame", int, 1), ("pos", float, 2), ("target", int, 1),
                    ("hp", float, 1), ("dpos", float, 2), ("team", int, 1),
             ]
@@ -79,35 +77,37 @@ def simulate_battle(M, max_step=100, acc_penalty=15., M_threshold=5000):
         frames["team"][i] = M["team"]
         return
 
+    # include the first frame.
     add_frame(M, 0)
 
     while (t < max_step) and running:
 
+        # compute the direction vectors and magnitudes for each unit in batch.
         group_vec = M["pos"][M["target"]] - M["pos"]
         dists = np.sqrt(np.sum((group_vec)**2, axis=1))
 
-        # if M is large, pre-compute target matrices at each time t rather than on each unit.
-        if M.shape[0] > M_threshold:
-            valid_targets = [np.argwhere((M["hp"]>0) & (M["team"]!=T)).flatten() for T in teams]
+        # pre-compute target matrices at each time t rather than on each unit.
+        valid_targets = [np.argwhere((M["hp"]>0) & (M["team"]!=T)).flatten() for T in teams]
 
+        # iterate over units and check their life, target.
         for i in range(M.shape[0]):
             if M["hp"][i] > 0.:
                 if M["hp"][M["target"][i]] <= 0.:
                     # assign new target
-                    if M.shape[0]>M_threshold and valid_targets[M["team"][i]].shape[0] > 0:
-                        M["target"][i] = np.random.choice(valid_targets[M["team"][i]])
+                    if valid_targets[M["team"][i]].shape[0] > 0:
+                        M["target"][i] = ai.assign_nearest(valid_targets[M["team"][i]], M, i)
+                        # M["target"][i] = ai.assign_random_precompute(valid_targets[M["team"][i]])
                     else:
-                        T = ai.assign_random_target(M, i)
-                        if T == -1:
-                            running=False
-                        else:
-                            M["target"][i] = T
+                        running = False
+
                 # if not in range, move towards target
-                if dists[i] > M["range"][i] or np.random.rand() < .2:
-                    # move unit.
+                if dists[i] > M["range"][i]:
+                    # move unit towards attacking enemy.
                     M["pos"][i] += M["speed"][i] * (group_vec[i] / dists[i])
                 else:
+                    # calculate the chance of hitting the opponent
                     hit = M["acc"][i] * (1. - M["dodge"][i]) * (1. - dists[i] / acc_penalty)
+                    # if hit chance overcomes a random.. deal damage.
                     if hit > np.random.rand():
                         M["hp"][M["target"][i]] -= M["dmg"][i]
         t += 1

@@ -6,9 +6,6 @@ Created on Mon Feb 25 15:12:35 2019
 @author: gparkes
 """
 import time
-import numpy as np
-import itertools as it
-import matplotlib.pyplot as plt
 import sys
 sys.path.insert(0, "../")
 import battlesim as bsm
@@ -22,51 +19,32 @@ def time_func(method, *args):
     return diff
 
 
-def first_simulation():
-    with bsm.Battle("../datasets/starwars-clonewars.csv") as b:
-        # where b is a 'Battle' object.
-        trial = [
-            bsm.Army(b, "B1 battledroid", 50),
-            bsm.Army(b, "Clone Trooper", 30)
-        ]
-        # create simulation
-        sim = bsm.simulate_battle(trial, max_timestep=500)
-
-    return sim
-
-
-def first_sim_without():
+def sim1():
+    """
+    In this first example, we create a 'Battle' class, create a simple army and set gaussian positions.
+    """
     b = bsm.Battle("../datasets/starwars-clonewars.csv")
-    a1 = bsm.Army(b, "B1 battledroid", 50)
-    a2 = bsm.Army(b, "Clone Trooper", 30)
-    sim = bsm.simulate_battle([a1, a2], max_timestep=200)
-    return sim
+    b.create_army([("B1 battledroid",20), ("Clone Trooper",10)])
+    b.position_gaussian([(0, 1), (10, 1)])
+    # run simulation.
+    _ = b.simulate()
+    return b
 
 
-def simulate_nbattle(n1, n2):
-    print("n1:%d, n2:%d" % (n1,n2))
-    with bsm.Battle("../datasets/starwars-clonewars.csv") as b:
-        t =[
-            bsm.Army(b, "B1 battledroid", n1),
-            bsm.Army(b, "Clone Trooper", n2)
-        ]
-    sim = bsm.simulate_battle(t, max_timestep=n1*n2/10)
-    return sim
-
-
-def simulate_multiple():
-    x1 = np.linspace(10, 400, 10, dtype=np.int)
-    varx = list(it.combinations(x1, 2))
-    times = [time_func(simulate_nbattle, v1, v2) for v1,v2 in varx]
-    return np.asarray(varx), np.asarray(times)
+def sim2():
+    """
+    In this second example, we create a 'Battle' class, create an army and define 'Distributions'
+    """
+    b = bsm.Battle("../datasets/starwars-clonewars.csv")
+    b.create_army([("B1 battledroid",20), ("Clone Trooper",10)])
+    d1 = bsm.Distribution('normal').setx(loc=5, scale=2)
+    d2 = bsm.Distribution('uniform').yoff(4)
+    b.position_from_dist([d1, d2])
+    # run
+    _ = b.simulate()
+    return b
 
 
 if __name__ == '__main__':
-    sim = first_simulation()
-    sim2 = first_sim_without()
-    varx, times = simulate_multiple()
-    Nt = varx.sum(axis=1)
-    m,b = np.polyfit(Nt, times, 1)
-    plt.plot(Nt, times, 'x', Nt, Nt*m+b, 'x')
-    plt.xlabel("Total N")
-    plt.ylabel("Time taken")
+    b1 = sim1()
+    b2 = sim2()
