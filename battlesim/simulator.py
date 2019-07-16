@@ -14,7 +14,11 @@ from . import utils
 
 ############################################################################
 
-__all__ = ["simulate_battle"]
+__all__ = ["simulate_battle", "frame_columns"]
+
+
+def frame_columns():
+    return ["frame", "allegiance", "alive", "x", "y", "dir_x", "dir_y"]
 
 
 def _convert_to_pandas(frames):
@@ -36,7 +40,7 @@ def _direction_norm(dir_vec):
     return (dir_vec.T/mag).T
 
 
-def simulate_battle(M, max_step=100, acc_penalty=15.):
+def simulate_battle(M, ai_map, max_step=100, acc_penalty=15., ret_frames=True):
     """
     Given a Numpy Matrix of units, simulate a fight.
 
@@ -44,10 +48,14 @@ def simulate_battle(M, max_step=100, acc_penalty=15.):
     --------
     M : np.ndarray (units, )
         A matrix containing data values
+    ai_map : dict
+        A dictionary mapping groups (k) to a bsm.ai.* function (v)
     max_step : int
         The maximum number of steps
     acc_penalty : float
         Penalties applied to global accuracy
+    ret_frames : bool
+        If True, save each frame, else, return the allegiance that is victorious.
 
     Returns
     -------
@@ -58,45 +66,47 @@ def simulate_battle(M, max_step=100, acc_penalty=15.):
     running = True
     teams = np.unique(M["team"])
 
-    frames = np.zeros(
-            (max_step+1, M.shape[0]),
-            dtype=[("frame", int, 1), ("pos", float, 2), ("target", int, 1),
-                   ("hp", float, 1), ("dpos", float, 2), ("team", int, 1),
-            ]
-    )
+    if ret_frames:
+        frames = np.zeros(
+                (max_step+1, M.shape[0]),
+                dtype=[("frame", np.int64, 1), ("pos", np.float64, 2), ("target", np.int64, 1),
+                       ("hp", np.float64, 1), ("dpos", np.float64, 2), ("team", np.uint8, 1),
+                ]
+        )
 
-    def add_frame(M, i):
-        # copy over data from M into frames.
-        frames["frame"][i] = i
-        frames["pos"][i] = M["pos"]
-        frames["target"][i] = M["target"]
-        frames["hp"][i] = M["hp"]
-        # create direction norm
-        dnorm = _direction_norm(M["pos"][M["target"]] - M["pos"])
-        frames["dpos"][i] = dnorm
-        frames["team"][i] = M["team"]
-        return
+        def add_frame(M, i):
+            # copy over data from M into frames.
+            frames["frame"][i] = i
+            frames["pos"][i] = M["pos"]
+            frames["target"][i] = M["target"]
+            frames["hp"][i] = M["hp"]
+            # create direction norm
+            dnorm = _direction_norm(M["pos"][M["target"]] - M["pos"])
+            frames["dpos"][i] = dnorm
+            frames["team"][i] = M["team"]
+            return
 
-    # include the first frame.
-    add_frame(M, 0)
+        # include the first frame.
+        add_frame(M, 0)
+
 
     while (t < max_step) and running:
 
-        # compute the direction vectors and magnitudes for each unit in batch.
+        # pre-compute the direction vectors and magnitudes for each unit in batch.
         group_vec = M["pos"][M["target"]] - M["pos"]
         dists = np.sqrt(np.sum((group_vec)**2, axis=1))
-
         # pre-compute target matrices at each time t rather than on each unit.
-        valid_targets = [np.argwhere((M["hp"]>0) & (M["team"]!=T)).flatten() for T in teams]
+        enemy_targets = [np.argwhere((M["hp"]>0) & (M["team"]!=T)).flatten() for T in teams]
+        ally_targets = [np.argwhere((M["hp"]>0) & (M["team"]==T)).flatten() for T in teams]
 
         # iterate over units and check their life, target.
         for i in range(M.shape[0]):
             if M["hp"][i] > 0.:
-                if M["hp"][M["target"][i]] <= 0.:
+                if M["hp"][M["target"][i]] <= 0:
                     # assign new target
-                    if valid_targets[M["team"][i]].shape[0] > 0:
-                        M["target"][i] = ai.assign_nearest(valid_targets[M["team"][i]], M, i)
-                        # M["target"][i] = ai.assign_random_precompute(valid_targets[M["team"][i]])
+                    if enemy_targets[M["team"][i]].shape[0] > 0:
+                        # use ai_map to dictionary-map the group number to the appropriate AI function
+                        M["target"][i] = ai_map[M["group"][i]](enemy_targets[M["team"][i]], ally_targets[M["team"][i]], M, i)
                     else:
                         running = False
 
@@ -106,11 +116,16 @@ def simulate_battle(M, max_step=100, acc_penalty=15.):
                     M["pos"][i] += M["speed"][i] * (group_vec[i] / dists[i])
                 else:
                     # calculate the chance of hitting the opponent
-                    hit = M["acc"][i] * (1. - M["dodge"][i]) * (1. - dists[i] / acc_penalty)
+                    hit = M["acc"][i] * (1. - M["dodge"][M["target"][i]]) * (1. - dists[i] / acc_penalty)
                     # if hit chance overcomes a random.. deal damage.
                     if hit > np.random.rand():
                         M["hp"][M["target"][i]] -= M["dmg"][i]
         t += 1
-        add_frame(M, t)
 
-    return _convert_to_pandas(frames[:t])
+        if ret_frames:
+            add_frame(M, t)
+
+    if ret_frames:
+        return _convert_to_pandas(frames[:t])
+    else:
+        return np.asarray([np.argwhere((M["hp"]>0) & (M["team"]==T)).flatten().shape[0] for T in teams])

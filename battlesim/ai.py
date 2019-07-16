@@ -7,101 +7,152 @@ Created on Fri Feb 22 14:27:05 2019
 """
 import numpy as np
 from numba import jit
-from . import utils
 
 
-__all__ = ["assign_random_precompute", "assign_nearest"]
+def get_init_function_names():
+    return ["random", "pack", "nearest", "pack_nearest"]
 
+
+__all__ = get_init_function_names()
+
+
+def get_init_functions():
+    return [random, pack, nearest, pack_nearest]
+
+def get_map_functions():
+    return dict(zip(get_init_function_names(), get_init_functions()))
 
 ############## AI FUNCTIONS ##############################
 
-@utils.deprecated
-def init_ai_random(units):
-    """
-    Given a list of units, get each unit to randomly select an enemy.
-    """
-    republics = [u for u in units if (u.allegiance_int_ == 0) and u.alive_]
-    ciss = [u for u in units if (u.allegiance_int_ == 1) and u.alive_]
-
-    rng = np.random.choice(len(ciss), len(republics))
-    for rnd,ru in zip(rng, republics):
-        # select a unit from cis
-        ru.target_ = ciss[rnd]
-    rng = np.random.choice(len(republics), len(ciss))
-    for rnd,cu in zip(rng, ciss):
-        cu.target_ = republics[rnd]
-    return
-
-@utils.deprecated
-def init_ai_nearest(units):
-    """
-    Given a list of units, get each unit to select the nearest enemy.
-    """
-    republics = [u for u in units if (u.allegiance_int_ == 0) and u.alive_]
-    ciss = [u for u in units if (u.allegiance_int_ == 1) and u.alive_]
-
-    # for each republic unit, calculate the magnitude from all other units, and assign.
-    for r in republics:
-        mags = [utils.magnitude(r.pos_ - u.pos_) for u in ciss]
-        r.target_ = ciss[np.argmin(mags)]
-    # repeat for CIS
-    for c in ciss:
-        mags = [utils.magnitude(c.pos_ - u.pos_) for u in republics]
-        c.target_ = republics[np.argmin(mags)]
-    return
-
-@utils.deprecated
-def ai_random(units, selected_unit):
-    """
-    This AI algorithm works by giving the 'selected_unit' a new target at random.
-    """
-    # assign a new target
-    alive_enemies = [u for u in units if
-                     (u.allegiance_int_ != selected_unit.allegiance_int_)
-                     and (u.alive_)]
-    # if this list is empty, return False, else return True
-    if len(alive_enemies) > 0:
-        # generate rng, select one
-        selected_unit.target_ = alive_enemies[np.random.randint(len(alive_enemies))]
-        return True
-    else:
-        return False
-
-@utils.deprecated
-def ai_nearest(units, selected_unit):
-    """
-    This AI algorithm works by giving the 'selected_unit' a new target based solely
-    on nearest location.
-    """
-    # assign from enemy pool
-    alive_enemies = [u for u in units if
-                     (u.allegiance_int_ != selected_unit.allegiance_int_)
-                     and u.alive_]
-
-    if len(alive_enemies) > 0:
-        # calculate mag distances.
-        mags = [utils.magnitude(selected_unit.pos_ - u.pos_) for u in alive_enemies]
-        # choose min dist.
-        selected_unit.target_ = alive_enemies[np.argmin(mags)]
-        return True
-    else:
-        return False
-
 
 @jit(nopython=True)
-def assign_random_precompute(candidates):
+def random(enemies, allies, M, i):
+    """
+    Given enemy candidates who are alive, draw one at random.
+
+    Parameters
+    --------
+    enemies : np.ndarray
+        indices of enemy candidates
+    allies : np.ndarray
+        indices of ally candidatea
+    M : np.ndarray (n,)
+        The total dataset
+    i : int
+        Index of chosen unit
+
+    Returns
+    -------
+    j : Index of new target
+        -1 if not valid target chosen.
+    """
     # draw a candidate
-    if candidates.shape[0] > 0:
-        return np.random.choice(candidates)
+    if enemies.shape[0] > 0:
+        return np.random.choice(enemies)
     else:
         return -1
 
+
 @jit
-def assign_nearest(candidates, M, i):
-    if candidates.shape[0] > 0:
+def pack(enemies, allies, M, i):
+    """
+    Given enemy candidates who are alive, assign an enemy based on
+    the majority of targets your allies are assigned to.
+
+    Parameters
+    --------
+    enemies : np.ndarray
+        indices of enemy candidates
+    allies : np.ndarray
+        indices of ally candidatea
+    M : np.ndarray (n,)
+        The total dataset
+    i : int
+        Index of chosen unit
+
+    Returns
+    -------
+    j : Index of new target
+        -1 if not valid target chosen.
+    """
+    # calculate the intersection of allied targets, with the alive enemies.
+    valid_targets = np.intersect1d(M["target"][allies], enemies)
+    if valid_targets.shape[0] > 0:
+        # return the enemy with the most allies targeting it
+        return np.argmax(np.bincount(valid_targets))
+    else:
+        return -1
+
+
+@jit
+def nearest(enemies, allies, M, i):
+    """
+    Given enemy candidates who are alive, determine which one is nearest.
+
+    Parameters
+    --------
+    enemies : np.ndarray
+        indices of enemy candidates
+    allies : np.ndarray
+        indices of ally candidatea
+    M : np.ndarray (n,)
+        The total dataset
+    i : int
+        Index of chosen unit
+
+    Returns
+    -------
+    j : Index of new target
+        -1 if not valid target chosen.
+    """
+    if enemies.shape[0] > 0:
         # compute distances/magnitudes
-        distances = M["pos"][i] - M["pos"][candidates]
-        mags = np.sqrt(np.sum((distances)**2, axis=1))
-        return candidates[np.argmin(mags)]
+        distances = M["pos"][i] - M["pos"][enemies]
+        mags = np.sqrt(np.sum(np.square(distances), axis=1))
+        return enemies[np.argmin(mags)]
+    else:
+        return -1
+
+
+@jit
+def pack_nearest(enemies, allies, M, i, k=5):
+    """
+    A combination of 'pack' and 'nearest' methods, only consider
+    the nearest k allies in pack mentality to select the same
+    target.
+
+    Parameters
+    --------
+    enemies : np.ndarray
+        indices of enemy candidates
+    allies : np.ndarray
+        indices of ally candidatea
+    M : np.ndarray (n,)
+        The total dataset
+    i : int
+        Index of chosen unit
+    k : int
+        The number of allies to consider
+
+    Returns
+    -------
+    j : Index of new target
+        -1 if not valid target chosen.
+    """
+    if enemies.shape[0] > 0:
+        if allies.shape[0] < k:
+            ally_indices = allies
+        else:
+            # select nearest k allies - compute distances
+            distances = M["pos"][i] - M["pos"][allies]
+            mags = np.sqrt(np.sum(np.square(distances), axis=1))
+            # select bottomk allies by magnitude distance
+            ally_indices = np.argpartition(mags, k)[:k]
+        # calculate valid targets
+        valid_targets = np.intersect1d(M["target"][ally_indices], enemies)
+        if valid_targets.shape[0] > 0:
+            return np.argmax(np.bincount(valid_targets))
+        else:
+            return -1
     else:
         return -1

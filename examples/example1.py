@@ -25,7 +25,7 @@ def sim1():
     """
     b = bsm.Battle("../datasets/starwars-clonewars.csv")
     b.create_army([("B1 battledroid",20), ("Clone Trooper",10)])
-    b.position_gaussian([(0, 1), (10, 1)])
+    b.apply_position_gaussian([(0, 1), (10, 1)])
     # run simulation.
     _ = b.simulate()
     return b
@@ -39,7 +39,7 @@ def sim2():
     b.create_army([("B1 battledroid",20), ("Clone Trooper",10)])
     d1 = bsm.Distribution('normal').setx(loc=5, scale=2)
     d2 = bsm.Distribution('uniform').yoff(4)
-    b.position_from_dist([d1, d2])
+    b.apply_position([d1, d2])
     # run
     _ = b.simulate()
     return b

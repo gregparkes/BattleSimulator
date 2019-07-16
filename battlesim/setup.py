@@ -6,7 +6,7 @@ from setuptools import setup, find_packages
 
 setup(
 	name="battlesim",
-	version="0.2.0",
+	version="0.2.2",
 	description="A python package for simulating battles and visualizing them in animation",
 	url="https://github.com/gregparkes/battlesim",
 	author="Gregory Parkes",

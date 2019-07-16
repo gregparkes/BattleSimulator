@@ -12,7 +12,13 @@ import functools
 import warnings
 
 
-__all__ = ["import_and_check_unit_file"]
+__all__ = []
+
+
+def check_columns(df, list_of_columns):
+    for l in list_of_columns:
+        if l not in df.columns:
+            raise ValueError("column '{}' not found in dataframe.".format(l))
 
 
 def deprecated(func):
@@ -63,11 +69,31 @@ def get_segments(army_set):
     return s
 
 
+def io_table_columns():
+    return [
+        "Name", "Allegiance", "HP", "Damage", "Accuracy",
+        "Miss", "Movement Speed", "Range"
+    ]
+
+
+def io_table_descriptions():
+    return [
+        "The name of the unit. Format string",
+        "The team/allegiance of the unit. Format string, must be hashable",
+        "HP: the health of the unit; either an integer or float, no limit. Must be > 0",
+        "Damage: the primary damage of the unit; either integer or float, no limit.",
+        "Accuracy: the accuracy of the unit; an integer/float in the range [0, 100]",
+        "Miss: the chance of the unit to miss an attack; an integer/float in the range [0, 100]",
+        "Movement Speed: the movement speed of the unit; float.",
+        "Range: the range of the unit; either integer or float, Must be > 0"
+    ]
+
+
 def import_and_check_unit_file(fpath):
     """
     Checks the quality of the unit-score datafile.
 
-    Returns dataframe if successful
+    Returns dataframe if successful.
     """
     # try to import
     if not os.path.isfile(fpath):
@@ -75,13 +101,11 @@ def import_and_check_unit_file(fpath):
     # attempt to read in
     df = pd.read_csv(fpath)
     cols = df.columns
-    must_cols = [
-        "Name", "Allegiance", "HP", "Damage", "Accuracy",
-        "Miss", "Movement Speed", "Range"
-    ]
-    for m in must_cols:
+    mappp = dict(zip(io_table_columns(), io_table_descriptions()))
+
+    for m in io_table_columns():
         if m not in cols:
-            raise IOError("column '{}' not found in file and must be present.".format(m))
+            raise IOError("column '{}' not found in file and must be present. Description:::'{}'".format(m, mappp[m]))
 
     # assign index
     df.set_index("Name", inplace=True)

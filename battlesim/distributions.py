@@ -15,7 +15,7 @@ class Distribution(object):
     in a given Battle.
     """
 
-    def __init__(self, distribution, **parameters):
+    def __init__(self, distribution="normal", **parameters):
         """
         Initialise the continuous distribution object with a name mapping to a
         scipy.stats distribution.
@@ -23,7 +23,7 @@ class Distribution(object):
         Parameters
         --------
         distribution : str
-            One of ['uniform','gamma','beta','normal','laplace','exp','halfnormal']
+            One of ['uniform','gamma','beta','normal','laplace','exp','chi','gaussian'], default 'normal'
         parameters : dict
             Parameters of the associated scipy.stats.<distribution>, if wanted.
         """
@@ -41,13 +41,15 @@ class Distribution(object):
 
 
     def _get_dists(self):
-        return ["uniform", 'gamma', 'beta', 'normal', 'laplace', 'exp', 'chi']
+        return ["uniform", 'gaussian', 'gamma', 'beta', 'normal', 'laplace', 'exp', 'chi']
     def _get_dist_funcs(self):
-        return [stats.uniform, stats.gamma, stats.beta, stats.norm, stats.laplace,
+        return [stats.uniform, stats.norm, stats.gamma, stats.beta, stats.norm, stats.laplace,
                       stats.expon, stats.chi]
     def _get_default_params(self):
         return [
-            {}, {"a": 2.}, {"a": .5, "b": .5}, {"loc": 0., "scale": 1.}, {}, {}, {"df": 1}
+            {'loc': 0., 'scale': 1.}, {"loc": 0., "scale": 1.},
+            {"a": 2.}, {"a": .5, "b": .5},
+            {"loc": 0., "scale": 1.}, {}, {}, {"df": 1}
         ]
     def _get_x_param(self):
         return self._x_param

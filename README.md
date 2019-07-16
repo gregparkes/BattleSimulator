@@ -37,13 +37,13 @@ You can see that we have specified a 'dataset' from which all of the unit roster
 be oriented, see the documentation. We then need to specify units to create to form an army. For example, in this Star Wars example, we could specify a play-off between Clone troopers and B1 battledroids:
 
 ```python
->>> battle.create_army([("B1 battledroid", 50), ("Clone Trooper", 50)])
+>>> battle.create_army([("B1 battledroid", 70), ("Clone Trooper", 50)])
 ```
 
 Here we call the `create_army` function, which internally creates an efficient `numpy` matrix, ready to perform the simulation. This is stored in the `battle.M_` object, a heterogenous `ndarray` element. From here, we might also want to specify the locations of our different blobs, as by default they will be sitting on top of each other at (0, 0).
 
 ```python
->>> battle.assign_positions([(0, 1), (10, 1)])
+>>> battle.apply_position_gaussian([(0, 1), (10, 1)])
 ```
 
 Here the first element of each tuple represents the mean of the gaussian distribution, and the second element refers to the variance (or spread). From here, all we need to do now is simulate this:
@@ -59,13 +59,26 @@ By default, the simulation function will make a record of important parameters a
 >>> HTML(bsm.quiver_fight(F).to_jshtml())
 ```
 
+![Image not found](simulations/sim1.gif)
+
 Here `quiver_fight` treats each unit object as a quiver arrow in 2-d space (position and direction facing it's enemy). The targets should move towards each other and attempt to kill each other. Dead units are represented as crosses **'x'** on the map. 
 
 ![Image not found](images/quiver2.svg)
 
 The rest is for you to explore, tweak and enjoy watching arrows move towards each other and kill each other.
 
-## Engine specifics: Coming up with `Unit`
+## One step further: Repeated runs
+
+If you're interested in seeing how each team fare over multiple runs (to eliminate random biases), then `bsm.Battle` objects once defined, contain a `simulate_k()` method, where `k` specifies the number of runs you wish to complete. Unlike `simulate()` by itself, it does not return a `pandas.DataFrame` of frames, but rather the number of units from each team left standing at each iteration.
+
+```python
+>>> runs = battle.simulate_k(k=40)
+```
+
+This is the beginning of creating an interface similar to Machine Learning, whereby the outcome can be a classification (team) or regression (number of units surviving) target, and the unit compositions, aspects of the engine etc., can be inputs.
+
+
+## Engine specifics: Coming up with Units
 
 Units are provided in a file named `unit-scores.csv`, which provides the Name, Allegiance, HP (hit points) and other characteristics about each of the units.Battles are created using a unit file in `battle.py`. Simulations are called using one of the functions found in `simulator.py`, and the results can then be plotted using one of the plotting functions in `simplot.py`, alternatively you can write code to plot it yourself.
 
