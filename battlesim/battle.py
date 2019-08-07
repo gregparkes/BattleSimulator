@@ -32,6 +32,9 @@ class Battle(object):
         assert isinstance(dbfilepath, str), "dbfilepath must be of type ('str')"
         self.db_ = utils.import_and_check_unit_file(dbfilepath)
         self.M_ = None
+        # convert db_ index to lower case.
+        self.db_names_ = self.db_.index.tolist()
+        self.db_.index = self.db_.index.str.lower()
 
 
     """---------------------- FUNCTIONS --------------------"""
@@ -56,9 +59,10 @@ class Battle(object):
         """
         #assign
         assert isinstance(army_set, (list, tuple)), "army_set must be of type ('list','tuple')"
-        self.army_set_ = army_set
-        self.n_armies_ = len(army_set)
-        self.N_ = sum([arm[1] for arm in army_set])
+        # convert string elements to lowercase.
+        self.army_set_ = [(u.lower(), n) for u, n in army_set]
+        self.n_armies_ = len(self.army_set_)
+        self.N_ = sum([arm[1] for arm in self.army_set_])
 
         self.M_ = np.zeros((self.N_), dtype=[
             ("team",np.uint8,1),("group",np.uint8,1),("pos",np.float64,2),("hp",np.float64,1),
@@ -67,14 +71,14 @@ class Battle(object):
         ])
 
         segments = utils.get_segments(army_set)
-        self.teams_ = np.asarray([self.db_.loc[U[0],"allegiance_int"] for U in army_set])
+        self.teams_ = np.asarray([self.db_.loc[U[0],"allegiance_int"] for U in self.army_set_])
         self.allegiances_ = (self.db_[["Allegiance","allegiance_int"]]
                                 .set_index("allegiance_int")
                                 .drop_duplicates().squeeze())
 
 
         # set initial values.
-        for i, ((u, n), (start, end), team) in enumerate(zip(army_set, segments, self.teams_)):
+        for i, ((u, n), (start, end), team) in enumerate(zip(self.army_set_, segments, self.teams_)):
             self.M_["team"][start:end] = team
             self.M_["group"][start:end] = i
             self.M_["hp"][start:end] = self.db_.loc[u,"HP"]
