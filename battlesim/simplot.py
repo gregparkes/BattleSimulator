@@ -14,7 +14,7 @@ from .simulator import frame_columns
 from .utils import check_columns
 
 # all functions to import
-__all__ = ["quiver_fight"]
+__all__ = ["quiver_fight", "contour_fight"]
 
 
 def _loop_colors():

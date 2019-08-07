@@ -10,14 +10,14 @@ from numba import jit
 
 
 def get_init_function_names():
-    return ["random", "pack", "nearest", "pack_nearest"]
+    return ["random", "pack", "nearest", "weakest", "strongest"]
 
 
 __all__ = get_init_function_names()
 
 
 def get_init_functions():
-    return [random, pack, nearest, pack_nearest]
+    return [random, pack, nearest, weakest, strongest]
 
 def get_map_functions():
     return dict(zip(get_init_function_names(), get_init_functions()))
@@ -54,21 +54,24 @@ def random(enemies, allies, M, i):
 
 
 @jit
-def pack(enemies, allies, M, i):
+def pack(enemies, allies, M, i, k=5):
     """
-    Given enemy candidates who are alive, assign an enemy based on
-    the majority of targets your allies are assigned to.
+    Given alive enemy candidates and allies, determine the top k targets
+    within a 'pack mentality' i.e all target the same top k enemies. Otherwise
+    randomly choose a remaining enemy.
 
     Parameters
     --------
     enemies : np.ndarray
-        indices of enemy candidates
+        indices of alive enemy candidates
     allies : np.ndarray
-        indices of ally candidatea
+        indices of alive ally candidates
     M : np.ndarray (n,)
         The total dataset
     i : int
         Index of chosen unit
+    k : int
+        The number of topk targets
 
     Returns
     -------
@@ -77,9 +80,14 @@ def pack(enemies, allies, M, i):
     """
     # calculate the intersection of allied targets, with the alive enemies.
     valid_targets = np.intersect1d(M["target"][allies], enemies)
-    if valid_targets.shape[0] > 0:
-        # return the enemy with the most allies targeting it
-        return np.argmax(np.bincount(valid_targets))
+    if enemies.shape[0] > 0:
+        if valid_targets.shape[0] > k:
+            # return the top k enemies with the most allies targeting it
+            topktargets = np.argpartition(np.bincount(valid_targets),k)[:k]
+            return np.random.choice(topktargets)
+        else:
+            # choose a random new enemy
+            return np.random.choice(enemies)
     else:
         return -1
 
@@ -115,11 +123,10 @@ def nearest(enemies, allies, M, i):
 
 
 @jit
-def pack_nearest(enemies, allies, M, i, k=5):
+def weakest(enemies, allies, M, i):
     """
-    A combination of 'pack' and 'nearest' methods, only consider
-    the nearest k allies in pack mentality to select the same
-    target.
+    Given enemy alive candidates, globally determine which one is weakest with
+    lowest hit points (and easiest to kill).
 
     Parameters
     --------
@@ -131,8 +138,35 @@ def pack_nearest(enemies, allies, M, i, k=5):
         The total dataset
     i : int
         Index of chosen unit
-    k : int
-        The number of allies to consider
+
+    Returns
+    -------
+    j : Index of new target
+        -1 if not valid target chosen.
+    """
+
+    if enemies.shape[0] > 0:
+        return enemies[np.argmin(M["hp"][enemies])]
+    else:
+        return -1
+
+
+@jit
+def strongest(enemies, allies, M, i):
+    """
+    Given enemy alive candidates, globally determine which one is the strongest
+    of the enemies and target them.
+
+    Parameters
+    --------
+    enemies : np.ndarray
+        indices of enemy candidates
+    allies : np.ndarray
+        indices of ally candidates
+    M : np.ndarray (n,)
+        The total dataset
+    i : int
+        Index of chosen unit
 
     Returns
     -------
@@ -140,19 +174,6 @@ def pack_nearest(enemies, allies, M, i, k=5):
         -1 if not valid target chosen.
     """
     if enemies.shape[0] > 0:
-        if allies.shape[0] < k:
-            ally_indices = allies
-        else:
-            # select nearest k allies - compute distances
-            distances = M["pos"][i] - M["pos"][allies]
-            mags = np.sqrt(np.sum(np.square(distances), axis=1))
-            # select bottomk allies by magnitude distance
-            ally_indices = np.argpartition(mags, k)[:k]
-        # calculate valid targets
-        valid_targets = np.intersect1d(M["target"][ally_indices], enemies)
-        if valid_targets.shape[0] > 0:
-            return np.argmax(np.bincount(valid_targets))
-        else:
-            return -1
+        return enemies[np.argmax(M["hp"][enemies])]
     else:
         return -1

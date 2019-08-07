@@ -298,3 +298,14 @@ class Battle(object):
 
     """ ---------------------- MISC ------------------------------ """
 
+    def _get_unit_composition(self):
+        d = {}
+        d["unit"] = [name for name, _ in self.army_set_]
+        d["allegiance"] = [self.db_.loc[u, "Allegiance"] for u,_ in self.army_set_]
+        d["n"] = [n for _, n in self.army_set_]
+        d["init_ai"] = [a for a in self.init_ai_.values()]
+        d["rolling_ai"] = [a for a in self.rolling_ai_.values()]
+        return pd.DataFrame(d)
+
+
+    composition_ = property(_get_unit_composition, doc="The composition of the Battle")

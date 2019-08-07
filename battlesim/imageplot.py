@@ -7,7 +7,6 @@ Created on Mon Feb 25 13:38:51 2019
 """
 import matplotlib.pyplot as plt
 import numpy as np
-from . import utils
 
 __all__ = ["accuracy_contour", "hit_contour", "quiver_frame"]
 

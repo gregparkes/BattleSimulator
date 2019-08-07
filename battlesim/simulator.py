@@ -9,16 +9,13 @@ import pandas as pd
 import numpy as np
 from numba import jit
 
-from . import ai
-from . import utils
-
 ############################################################################
 
 __all__ = ["simulate_battle", "frame_columns"]
 
 
 def frame_columns():
-    return ["frame", "allegiance", "alive", "x", "y", "dir_x", "dir_y"]
+    return ["frame", "army", "allegiance", "alive", "x", "y", "dir_x", "dir_y"]
 
 
 def _convert_to_pandas(frames):
@@ -27,7 +24,8 @@ def _convert_to_pandas(frames):
     """
     steps, units = frames.shape
     DF = pd.concat([pd.DataFrame({
-        "frame": frames["frame"][s], "allegiance": frames["team"][s], "alive": frames["hp"][s] > 0,
+        "frame": frames["frame"][s], "army": frames["group"][s],
+        "allegiance": frames["team"][s], "alive": frames["hp"][s] > 0,
         "x": frames["pos"][s][:,0], "y": frames["pos"][s][:,1], "dir_x": frames["dpos"][s][:,0],
         "dir_y": frames["dpos"][s][:,1]
     }) for s in range(steps)])
@@ -71,6 +69,7 @@ def simulate_battle(M, ai_map, max_step=100, acc_penalty=15., ret_frames=True):
                 (max_step+1, M.shape[0]),
                 dtype=[("frame", np.int64, 1), ("pos", np.float64, 2), ("target", np.int64, 1),
                        ("hp", np.float64, 1), ("dpos", np.float64, 2), ("team", np.uint8, 1),
+                       ("group", np.uint8, 1)
                 ]
         )
 
@@ -84,6 +83,7 @@ def simulate_battle(M, ai_map, max_step=100, acc_penalty=15., ret_frames=True):
             dnorm = _direction_norm(M["pos"][M["target"]] - M["pos"])
             frames["dpos"][i] = dnorm
             frames["team"][i] = M["team"]
+            frames["group"][i] = M["group"]
             return
 
         # include the first frame.
@@ -99,9 +99,13 @@ def simulate_battle(M, ai_map, max_step=100, acc_penalty=15., ret_frames=True):
         enemy_targets = [np.argwhere((M["hp"]>0) & (M["team"]!=T)).flatten() for T in teams]
         ally_targets = [np.argwhere((M["hp"]>0) & (M["team"]==T)).flatten() for T in teams]
 
+        # pre-compute the 'luck' of each unit with random numbers.
+        round_luck = np.random.rand(M.shape[0])
+
         # iterate over units and check their life, target.
         for i in range(M.shape[0]):
             if M["hp"][i] > 0.:
+                # check whether the target is alive...
                 if M["hp"][M["target"][i]] <= 0:
                     # assign new target
                     if enemy_targets[M["team"][i]].shape[0] > 0:
@@ -116,9 +120,10 @@ def simulate_battle(M, ai_map, max_step=100, acc_penalty=15., ret_frames=True):
                     M["pos"][i] += M["speed"][i] * (group_vec[i] / dists[i])
                 else:
                     # calculate the chance of hitting the opponent
+                    # calculated as accuracy * (1 - opponents' dodge) * (1 - distance / accuracy penalty)
                     hit = M["acc"][i] * (1. - M["dodge"][M["target"][i]]) * (1. - dists[i] / acc_penalty)
-                    # if hit chance overcomes a random.. deal damage.
-                    if hit > np.random.rand():
+                    # if hit chance overcomes round luck.. deal damage to HP.
+                    if hit > round_luck[i]:
                         M["hp"][M["target"][i]] -= M["dmg"][i]
         t += 1
 
