@@ -58,9 +58,9 @@ def quiver_fight(Frames, allegiance_label={}, allegiance_color={}):
     # find bounds
     ax.set_xlim(Frames["x"].min() - 1., Frames["x"].max() + 1.)
     ax.set_ylim(Frames["y"].min() - 1., Frames["y"].max() + 1.)
-    # label
-    ax.set_xlabel("x")
-    ax.set_ylabel("y")
+    # hide axes labels
+    ax.get_xaxis().set_visible(False)
+    ax.get_yaxis().set_visible(False)
     # first frame
     frame0 = Frames.query("(frame==0) & alive")
     # use the numerical allegiance.
