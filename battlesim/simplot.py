@@ -11,7 +11,7 @@ from matplotlib import animation
 import itertools as it
 
 from .simulator import frame_columns
-from .utils import check_columns
+from .utils import check_columns, slice_loop
 
 # all functions to import
 __all__ = ["quiver_fight"]
@@ -72,7 +72,7 @@ def quiver_fight(Frames, allegiance_label={}, allegiance_color={}):
                                     ["team%d" % i for i in it.islice(it.count(1), 0, allegiances.shape[0])]))
     if len(allegiance_color) != allegiances.shape[0]:
         allegiance_color = dict(zip(allegiances.tolist(),
-                                    list(it.islice(it.cycle(_loop_colors()), 0, allegiances.shape[0]))))
+                                    slice_loop(_loop_colors(), allegiances.shape[0])))
     """
     Create two groups for each allegiance:
         1. The units that are alive, are arrows.
@@ -112,6 +112,7 @@ def quiver_fight(Frames, allegiance_label={}, allegiance_color={}):
             if len(new_dead) > 0:
                 dead[j].set_data(new_dead["x"], new_dead["y"])
         return (*alive, *dead)
+
 
     # animating the graph with step i
     def animate(i):

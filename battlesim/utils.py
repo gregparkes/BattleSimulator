@@ -76,6 +76,10 @@ def io_table_columns():
     ]
 
 
+def slice_loop(loopable, n):
+    return list(it.islice(it.cycle(loopable), 0, n))
+
+
 def io_table_descriptions():
     return [
         "The name of the unit. Format string",

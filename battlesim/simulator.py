@@ -9,6 +9,8 @@ import pandas as pd
 import numpy as np
 from numba import jit
 
+from . import move
+
 ############################################################################
 
 __all__ = ["simulate_battle", "frame_columns"]
@@ -117,7 +119,8 @@ def simulate_battle(M, ai_map, max_step=100, acc_penalty=15., ret_frames=True):
                 # if not in range, move towards target
                 if dists[i] > M["range"][i]:
                     # move unit towards attacking enemy.
-                    M["pos"][i] += M["speed"][i] * (group_vec[i] / dists[i])
+                    # updates inplace
+                    move.default(M["pos"], M["speed"], group_vec, dists, i)
                 else:
                     # calculate the chance of hitting the opponent
                     # calculated as accuracy * (1 - opponents' dodge) * (1 - distance / accuracy penalty)

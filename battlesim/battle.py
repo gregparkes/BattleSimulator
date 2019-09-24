@@ -8,11 +8,13 @@ Created on Fri Jul  5 17:39:42 2019
 
 import numpy as np
 import pandas as pd
+import itertools as it
 
 from . import utils
 from . import simulator
-from . import ai
-from .distributions import Distribution
+from . import target
+from . import simplot
+from .distributions import dist, Distribution
 
 
 class Battle(object):
@@ -32,6 +34,7 @@ class Battle(object):
         assert isinstance(dbfilepath, str), "dbfilepath must be of type ('str')"
         self.db_ = utils.import_and_check_unit_file(dbfilepath)
         self.M_ = None
+        self.sim_ = None
         # convert db_ index to lower case.
         self.db_names_ = self.db_.index.tolist()
         self.db_.index = self.db_.index.str.lower()
@@ -88,8 +91,8 @@ class Battle(object):
             self.M_["acc"][start:end] = self.db_.loc[u,"Accuracy"]/100.
             self.M_["dmg"][start:end] = self.db_.loc[u,"Damage"]
             # default position: uniform
-            dist = Distribution('uniform')
-            self.M_["pos"][start:end] = dist.sample(n)
+            D = Distribution('uniform')
+            self.M_["pos"][start:end] = D.sample(n)
 
         # initialise AIs as random.
         self.set_initial_ai(["random"]*self.n_armies_)
@@ -102,9 +105,19 @@ class Battle(object):
         """
         Assign locations to each 'army set' using a distribution from the battlesim.Distribution object.
 
+        e.g
+
+        battle.apply_distribution("gaussian")
+        battle.apply_distribution(bsm.Distribution("normal",loc=0,scale=1))
+        battle.apply_distribution([bsm.Distribution("beta"), bsm.Distribution("normal")])
+        battle.apply_distribution([
+            {"name":"beta", "x_loc":0., "y_loc":1.},
+            {"dist":"normal", "x_loc":10., "y_loc": 10.}
+        ])
+
         Parameters
         -------
-        distributions : str, battlesim.Distribution or list of battlesim.Distribution.
+        distributions : str, battlesim.Distribution or list/tuple of battlesim.Distribution/dict.
             The distribution(s) corresponding to each group.
 
         Returns
@@ -115,9 +128,9 @@ class Battle(object):
         if isinstance(distributions, str):
             if distributions in Distribution._get_dists():
                 # create a distribution object.
-                dist = Distribution(distributions)
+                D = Distribution(distributions)
                 for (u, n), (start, end) in zip(self.army_set_, segments):
-                    self.M_["pos"][start:end] = dist.sample(n)
+                    self.M_["pos"][start:end] = D.sample(n)
             else:
                 raise ValueError("distribution '{}' not found in bsm.Distribution.".format(distributions))
         elif isinstance(distributions, Distribution):
@@ -125,7 +138,14 @@ class Battle(object):
                 self.M_["pos"][start:end] = distributions.sample(n)
         elif isinstance(distributions, (list, tuple)):
             for (u, n), (start, end), d in zip(self.army_set_, segments, distributions):
-                self.M_["pos"][start:end] = d.sample(n)
+                if isinstance(d, Distribution):
+                    self.M_["pos"][start:end] = d.sample(n)
+                elif isinstance(d, dict):
+                    # unpack keywords into the 'dist' function of Distribution
+                    D = dist(**d)
+                    self.M_["pos"][start:end] = D.sample(n)
+                else:
+                    raise TypeError("Each element of 'distributions' must be a bsm.Distribution or dict")
         return self
 
 
@@ -194,7 +214,7 @@ class Battle(object):
         if self.M_ is None:
             raise TypeError("'M' must be initialised.")
 
-        f_dict = ai.get_map_functions()
+        f_dict = target.get_map_functions()
         segments = utils.get_segments(self.army_set_)
         # create valid_targets set
         valid_targets = [np.argwhere((self.M_["team"]!=T)).flatten() for T in np.unique(self.M_["team"])]
@@ -223,7 +243,7 @@ class Battle(object):
         """
         self.rolling_ai_ = dict(zip(range(self.n_armies_), func_names))
         # map these strings to actual functions, ready for simulate.
-        mappp = ai.get_map_functions()
+        mappp = target.get_map_functions()
         self._mapped_ai = dict(zip(range(self.n_armies_), [mappp[self.rolling_ai_[f]] for f in self.rolling_ai_]))
         return self
 
@@ -267,7 +287,9 @@ class Battle(object):
         if self.M_ is None:
             raise ValueError("Army is not initialised, cannot simulate!")
         else:
-            return simulator.simulate_battle(np.copy(self.M_), self._mapped_ai, **kwargs)
+            # we cache a copy of the sim as well for convenience
+            self.sim_ = simulator.simulate_battle(np.copy(self.M_), self._mapped_ai, **kwargs)
+            return self.sim_
 
 
     def simulate_k(self, k=10, **kwargs):
@@ -289,6 +311,8 @@ class Battle(object):
 
         Returns the victory for each k iteration, for each team.
         """
+        if k < 1:
+            raise ValueError("'k' must be at least 1")
         if self.M_ is None:
             raise ValueError("Army is not initialised, cannot simulate!")
         else:
@@ -300,7 +324,89 @@ class Battle(object):
             return pd.DataFrame(Z, columns=self.allegiances_.values)
 
 
-    """ ---------------------- MISC ------------------------------ """
+    """ ------------ CONVENIENCE PLOTTING FUNCTIONS ---------------------- """
+
+    def sim_jupyter(self, func=simplot.quiver_fight, create_html=False, cols={}):
+        """
+        This convenience method uses any saved 'sim_' object to generate the code
+        to output to a Jupyter Notebook. Once must simply then do:
+
+            HTML(battle.sim_jupyter())
+
+        And hey presto, it should all work!
+
+        Parameters
+        --------
+        func : function
+            The plot function to call, by default is bsm.quiver_fight()
+        create_html : bool
+            Decides whether to return the object directly, or create HTML to then use HTML()
+        cols : dict
+            colour dictionary to identify each allegiance with.
+
+        Returns
+        -------
+        s : str/object
+            HTML code to feed into HTML(s)
+        """
+        if self.sim_ is None:
+            raise ValueError("No simulation has occured, no presense of battle.sim_ object.")
+        labels = self.allegiances_.to_dict()
+        if len(cols) <= 0:
+            cols = utils.slice_loop(simplot._loop_colors(), len(self.allegiances_))
+
+        # call plotting function
+        Q = func(self.sim_, labels, cols)
+
+        if create_html:
+            return Q.to_jshtml()
+        else:
+            return Q
+
+
+    def sim_export(self, filename="example_sim.gif",
+                   func=simplot.quiver_fight, cols={},
+                   writer="pillow"):
+        """
+        This convenience method uses any saved 'sim_' object to generate the code
+        to export into a gif file.
+
+        Parameters
+        -------
+        filename : str
+            The name of the file to output. Must end in .gif
+        func : function
+            The plot function to call, by default is bsm.quiver_fight()
+        cols : dict
+            colour dictionary to identify each allegiance with.
+        writer : str
+            The type of writer to pass to funcanimation.save(). This might
+            need to be tweaked on your system.
+
+        Returns
+        -------
+        None
+        """
+        # append to end if not present
+        if not filename.endswith(".gif"):
+            filename.append(".gif")
+
+        if self.sim_ is None:
+            raise ValueError("No simulation has occured, no presense of battle.sim_ object.")
+
+        labels = self.allegiances_.to_dict()
+        if len(cols) <= 0:
+            cols = utils.slice_loop(simplot._loop_colors(), len(self.allegiances_))
+
+        # call function
+        Q = func(self.sim_, labels, cols)
+
+        #save
+        Q.save(filename,writer=writer)
+        return
+
+
+    """ ---------------------- MISC --------------------------------------- """
 
     def _get_unit_composition(self):
         d = {}
