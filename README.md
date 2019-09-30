@@ -1,10 +1,31 @@
-# `battlesim`: Modelling and animating simulated battles between units in Python.
+# `battlesim` 0.26: Modelling and animating simulated battles between units in Python.
 
 The aim of this side project is to become familiar with Python classes and with primitive forms of animation and simulating environments. We map units onto a 2D plane and run simple simulations that involve them moving towards an enemy unit and attacking it. Rounds finish when one team has completely wiped out the other side, or we have reached the maximum number of timesteps.
 
 ![Image not found](images/quiver1.svg)
 
 The code for the primary engine is found in `battlesim/`, and implementations/examples are found in the Jupyter notebooks. Animations should display properly in these notebooks.
+
+## Installation
+
+`battlesim` requires the following dependencies:
+
+* Python (>=3.5)
+* NumPy (>=1.11.0)
+* SciPy (>=1.3)
+* Pandas (>=0.25.1)
+* Matplotlib (>=3.1.1)
+* Numba (>=0.45)
+
+With the following for testing:
+
+* PyTest (5.1.2)
+
+If you have working versions of the dependencies, similarly install using `pip`:
+
+```bash
+pip install battlesim
+```
 
 ## How to use: The Basics
 
@@ -90,6 +111,10 @@ Units are provided in a file named `unit-scores.csv`, which provides the Name, A
 | Droideka | CIS | 20 | 20 | ... | 40 |
 
 The example above, is some basic stats about Star Wars units as an illustration. This work is very much still in the earliest stages and may be subject to large changes in the future.
+
+***
+
+## 
 
 ***
 

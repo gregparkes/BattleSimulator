@@ -8,13 +8,12 @@ Created on Fri Jul  5 17:39:42 2019
 
 import numpy as np
 import pandas as pd
-import itertools as it
 
 from . import utils
 from . import simulator
 from . import target
 from . import simplot
-from .distributions import dist, Distribution
+from .distributions import dist, Distribution, get_options
 
 
 class Battle(object):
@@ -62,10 +61,15 @@ class Battle(object):
         """
         #assign
         assert isinstance(army_set, (list, tuple)), "army_set must be of type ('list','tuple')"
+        assert utils.is_twotuple(army_set, str, int), "army_set must be a 2-tuple input"
+
         # convert string elements to lowercase.
         self.army_set_ = [(u.lower(), n) for u, n in army_set]
         self.n_armies_ = len(self.army_set_)
         self.N_ = sum([arm[1] for arm in self.army_set_])
+
+        # check that groups exist in army_set
+        utils.check_groups_in_db(self.army_set_, self.db_)
 
         self.M_ = np.zeros((self.N_), dtype=[
             ("team",np.uint8,1),("group",np.uint8,1),("pos",np.float64,2),("hp",np.float64,1),
@@ -119,14 +123,26 @@ class Battle(object):
         -------
         distributions : str, battlesim.Distribution or list/tuple of battlesim.Distribution/dict.
             The distribution(s) corresponding to each group.
+            e.g
+            str : distribution name for all army sets
+            dict : distribution name and parameters for all army sets
+            Distribution : object for all army sets
+            list/tuple:
+                Distribution : object for each army set
+                dict : name and parameters for each army set
+                str : dist name for each army set
 
         Returns
         -------
         self
         """
+        # if none for distributions, apply same as before.
+        if self.M_ is None:
+            raise AttributeError("create_army() has not been called, no positions to allocate")
+
         segments = utils.get_segments(self.army_set_)
         if isinstance(distributions, str):
-            if distributions in Distribution._get_dists():
+            if distributions in get_options()["names"]:
                 # create a distribution object.
                 D = Distribution(distributions)
                 for (u, n), (start, end) in zip(self.army_set_, segments):
@@ -136,6 +152,10 @@ class Battle(object):
         elif isinstance(distributions, Distribution):
             for (u, n), (start, end) in zip(self.army_set_, segments):
                 self.M_["pos"][start:end] = distributions.sample(n)
+        elif isinstance(distributions, dict):
+            for (u, n), (start, end) in zip(self.army_set_, segments):
+                D = dist(**distributions)
+                self.M_["pos"][start:end] = D.sample(n)
         elif isinstance(distributions, (list, tuple)):
             for (u, n), (start, end), d in zip(self.army_set_, segments, distributions):
                 if isinstance(d, Distribution):
@@ -144,8 +164,18 @@ class Battle(object):
                     # unpack keywords into the 'dist' function of Distribution
                     D = dist(**d)
                     self.M_["pos"][start:end] = D.sample(n)
+                elif isinstance(d, str):
+                    # each is a string distribution
+                    if d in get_options()["names"]:
+                        # create a distribution object.
+                        D = Distribution(d)
+                        self.M_["pos"][start:end] = D.sample(n)
+                    else:
+                        raise ValueError("distribution '{}' not found in bsm.Distribution.".format(d))
                 else:
                     raise TypeError("Each element of 'distributions' must be a bsm.Distribution or dict")
+        else:
+            raise TypeError("distributions must be of type [str, Distribution, list, tuple]")
         return self
 
 
@@ -162,32 +192,19 @@ class Battle(object):
         -------
         self
         """
+        if self.M_ is None:
+            raise AttributeError("create_army() has not been called, no positions to allocate to")
+        if not isinstance(positions, np.ndarray):
+            raise TypeError("positions must be of type [np.ndarray]")
+        if positions.shape[1] != 2:
+            raise ValueError("size of position dimensions must be 2, not {}".format(positions.shape[1]))
+        # check that size meets army_set
+        if positions.shape[0] != self.M_.shape[0]:
+            raise ValueError("size of position samples must be {}, not {}".format(self.M_.shape[0], positions.shape[0]))
+
         segments = utils.get_segments(self.army_set_)
         for (u, n), (start, end), location in zip(self.army_set_, segments, positions):
             self.M_["pos"][start:end] = location.copy()
-        return self
-
-
-    def set_ai(self, initial_functions, rolling_functions):
-        """
-        An aggregate function for setting all of the AI functionalities of each
-        'army set'.
-
-        Parameters
-        --------
-        initial_functions : list of str
-            The AI function to choose for initial targets for each army set. Can choose from:
-            ['random', 'pack', 'nearest']
-        rolling_functions : list of str
-            The AI function to choose for targets when their target dies
-            for each army set. Can choose from: ['random', 'pack', 'nearest']
-
-        Returns
-        -------
-        self
-        """
-        self.set_initial_ai(initial_functions)
-        self.set_rolling_ai(rolling_functions)
         return self
 
 
@@ -209,10 +226,12 @@ class Battle(object):
         if isinstance(func_names, (list, tuple)) and (len(func_names) == self.n_armies_):
             self.init_ai_ = dict(zip(range(self.n_armies_), func_names))
         else:
-            raise ValueError("ai_funcs is wrong type or length.")
+            raise AttributeError("ai_funcs is wrong type or length.")
 
         if self.M_ is None:
             raise TypeError("'M' must be initialised.")
+        utils.check_in_list(target.get_init_function_names(), func_names)
+        utils.check_list_type(func_names, str)
 
         f_dict = target.get_map_functions()
         segments = utils.get_segments(self.army_set_)
@@ -241,6 +260,16 @@ class Battle(object):
         -------
         self
         """
+        if isinstance(func_names, (list, tuple)) and (len(func_names) == self.n_armies_):
+            self.init_ai_ = dict(zip(range(self.n_armies_), func_names))
+        else:
+            raise AttributeError("ai_funcs is wrong type or length.")
+
+        if self.M_ is None:
+            raise TypeError("'M' must be initialised.")
+        utils.check_in_list(target.get_init_function_names(), func_names)
+        utils.check_list_type(func_names, str)
+
         self.rolling_ai_ = dict(zip(range(self.n_armies_), func_names))
         # map these strings to actual functions, ready for simulate.
         mappp = target.get_map_functions()
@@ -285,7 +314,7 @@ class Battle(object):
         Returns pd.DataFrame of frames.
         """
         if self.M_ is None:
-            raise ValueError("Army is not initialised, cannot simulate!")
+            raise AttributeError("No army sets are initialised, call create_army() before")
         else:
             # we cache a copy of the sim as well for convenience
             self.sim_ = simulator.simulate_battle(np.copy(self.M_), self._mapped_ai, **kwargs)
@@ -350,7 +379,7 @@ class Battle(object):
             HTML code to feed into HTML(s)
         """
         if self.sim_ is None:
-            raise ValueError("No simulation has occured, no presense of battle.sim_ object.")
+            raise AttributeError("No simulation has occured, no presense of battle.sim_ object.")
         labels = self.allegiances_.to_dict()
         if len(cols) <= 0:
             cols = utils.slice_loop(simplot._loop_colors(), len(self.allegiances_))
@@ -409,6 +438,8 @@ class Battle(object):
     """ ---------------------- MISC --------------------------------------- """
 
     def _get_unit_composition(self):
+        if self.M_ is None:
+            return None
         d = {}
         d["unit"] = [name for name, _ in self.army_set_]
         d["allegiance"] = [self.db_.loc[u, "Allegiance"] for u,_ in self.army_set_]

@@ -16,13 +16,15 @@ __all__ = ["default"]
 
 
 @jit(nopython=True)
-def default(M_pos, M_speed, dir_vec, distance, i, terrain_mod=1.):
+def default(M_pos, M_speed, direction, magnitude, i, terrain_mod=1.):
     """
     Moves according to the euclidean distance from the target.
 
     We include a 'terrain' modifier to indicate global movement speed modification
     depending on the ground, for example.
+
+    Modifies M_pos inplace; no return.
     """
     # updates M_pos inplace
-    M_pos[i] += (M_speed[i] * (dir_vec[i] / distance[i]) * terrain_mod)
+    M_pos[i] += (M_speed[i] * (direction[i] / magnitude[i]) * terrain_mod)
     return

@@ -10,6 +10,7 @@ import itertools as it
 import pandas as pd
 import functools
 import warnings
+from decorator import decorator
 
 
 __all__ = []
@@ -19,6 +20,44 @@ def check_columns(df, list_of_columns):
     for l in list_of_columns:
         if l not in df.columns:
             raise ValueError("column '{}' not found in dataframe.".format(l))
+
+
+def check_list_type(L, t):
+    for i, l in enumerate(L):
+        if not isinstance(l, t):
+            raise TypeError("type '{}' not found in list at index [{}]".format(t, i))
+    return True
+
+
+def check_in_list(L, sl):
+    """
+    L is the reference list, sl is the 'sub list'
+    """
+    for i, l in enumerate(sl):
+        if l not in L:
+            raise ValueError("element '{}' not found in super-list {}".format(l, L))
+    return True
+
+
+def is_twotuple(L, type1, type2):
+    """
+    Checks whether the object L is a 2-element tuple throughout.
+    """
+    if isinstance(L, (list, tuple)):
+        for i, x in enumerate(L):
+            if isinstance(x, tuple):
+                if len(x) != 2:
+                    raise ValueError("'L' element at index [{}] is not of size 2".format(i))
+                if not isinstance(x[0], type1):
+                    raise TypeError("x[0] element at index [{}] is not of type '{}'".format(i, type1))
+                if not isinstance(x[1], type2):
+                    raise TypeError("x[1] element at index [{}] is not of type '{}'".format(i, type2))
+            else:
+                raise TypeError("'x' is not of type 'tuple'")
+        return True
+    else:
+        raise TypeError("'L' must be of type 'list, tuple'")
+    return False
 
 
 def deprecated(func):
@@ -34,6 +73,35 @@ def deprecated(func):
         warnings.simplefilter('default', DeprecationWarning)  # reset filter
         return func(*args, **kwargs)
     return new_func
+
+
+
+def accepts(**decls):
+    """Decorator to check argument types.
+
+    Usage:
+
+    @check_args(name=str, text=str)
+    def parse_rule(name, text): ...
+    """
+    @decorator
+    def wrapper(func, *args, **kwargs):
+        code = func.func_code
+        fname = func.func_name
+        names = code.co_varnames[:code.co_argcount]
+        for argname, argtype in decls.iteritems():
+            try:
+                argval = args[names.index(argname)]
+            except IndexError:
+                argval = kwargs.get(argname)
+            if argval is None:
+                raise TypeError("%s(...): arg '%s' is null"
+                            % (fname, argname))
+            if not isinstance(argval, argtype):
+                raise TypeError("%s(...): arg '%s': type is %s, must be %s"
+                            % (fname, argname, type(argval), argtype))
+        return func(*args, **kwargs)
+    return wrapper
 
 
 def factor(n):
@@ -74,6 +142,13 @@ def io_table_columns():
         "Name", "Allegiance", "HP", "Damage", "Accuracy",
         "Miss", "Movement Speed", "Range"
     ]
+
+
+def check_groups_in_db(groups, db):
+    for group_name, count in groups:
+        if group_name not in db.index:
+            raise ValueError("group '{}' not found in {}".format(group_name, db.index.tolist()))
+    return True
 
 
 def slice_loop(loopable, n):

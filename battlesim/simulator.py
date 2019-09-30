@@ -10,6 +10,7 @@ import numpy as np
 from numba import jit
 
 from . import move
+from . import utils
 
 ############################################################################
 
