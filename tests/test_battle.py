@@ -167,9 +167,9 @@ def test_set_initial_ai():
         b.set_initial_ai(["nearest","hello"])
 
     # call normally
-    b.set_initial_ai(["nearest", "pack"])
+    b.set_initial_ai(["nearest", "random"])
     # check composition
-    assert set(b.composition_["init_ai"].values) == set(["pack","nearest"])
+    assert set(b.composition_["init_ai"].values) == set(["random","nearest"])
 
 
 def test_set_rolling_ai():
@@ -178,7 +178,7 @@ def test_set_rolling_ai():
 
     # set AI before definition
     with pytest.raises(AttributeError):
-        b.set_rolling_ai(["nearest", "pack"])
+        b.set_rolling_ai(["nearest", "random"])
     with pytest.raises(AttributeError):
         b.set_rolling_ai("nearest")
 
@@ -192,9 +192,9 @@ def test_set_rolling_ai():
         b.set_rolling_ai(["nearest","hello"])
 
     # call normally
-    b.set_rolling_ai(["nearest", "pack"])
+    b.set_rolling_ai(["nearest", "random"])
     # check composition
-    assert set(b.composition_["rolling_ai"].values) == set(["pack","nearest"])
+    assert set(b.composition_["rolling_ai"].values) == set(["random","nearest"])
 
 
 def test_simulate():
@@ -219,4 +219,4 @@ def test_simulate():
 
     # check columns
     for c in F.columns:
-        assert c in bsm.simulator.frame_columns(), "column '{}' not in df.columnset".format(c)
+        assert c in bsm.simulator_fast.frame_columns(), "column '{}' not in df.columnset".format(c)

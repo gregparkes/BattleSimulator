@@ -8,7 +8,8 @@ Created on Mon Jul  8 12:13:53 2019
 import numpy as np
 from scipy import stats
 
-__all__ = ["Distribution", "dist", "get_options"]
+
+__all__ = ["Distribution"]
 
 
 def get_options():
@@ -183,8 +184,8 @@ class Distribution(object):
         for p, v in params.items():
             if p not in self._accepted_params:
                 raise ValueError("parameter '{}' not found in {}".format(p, self._accepted_params))
-            if not isinstance(v, (float, np.float, np.float64)):
-                raise TypeError("parameter item must be of type [float]")
+            if not isinstance(v, (float, np.float, np.float64, int, np.int, np.int64)):
+                raise TypeError("parameter item must be of type [int, float]")
 
 
     scipy_dists_ = property(_get_dist_names, doc="list of accepted distributions")

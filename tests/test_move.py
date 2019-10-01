@@ -19,7 +19,7 @@ def some_setup():
     return b
 
 
-def test_default():
+def test_euclidean():
     # battle object requires input file
     b = some_setup()
 
@@ -39,6 +39,6 @@ def test_default():
     # now actual function
     prev_pos = np.copy(b.M_["pos"])
 
-    bsm.move.default(b.M_["pos"], b.M_["speed"], Dir, Mag, 0, 1.)
+    bsm.move.euclidean(b.M_["pos"], b.M_["speed"], Dir, Mag, 0, 1.)
 
     assert np.sum(np.abs(b.M_["pos"]-prev_pos - nudge_unit0)[0,:]) < 1e-8, "distances not calculated the same!"

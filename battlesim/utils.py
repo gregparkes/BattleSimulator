@@ -6,11 +6,12 @@ Created on Fri Feb 22 14:27:46 2019
 @author: gparkes
 """
 import os
+import numpy as np
 import itertools as it
 import pandas as pd
 import functools
 import warnings
-from decorator import decorator
+from numba import jit
 
 
 __all__ = []
@@ -27,6 +28,11 @@ def check_list_type(L, t):
         if not isinstance(l, t):
             raise TypeError("type '{}' not found in list at index [{}]".format(t, i))
     return True
+
+
+def colorwheel():
+    return ["red", "blue", "green", "orange", "purple", "brown", "black",
+            "cyan", "yellow"]
 
 
 def check_in_list(L, sl):
@@ -73,35 +79,6 @@ def deprecated(func):
         warnings.simplefilter('default', DeprecationWarning)  # reset filter
         return func(*args, **kwargs)
     return new_func
-
-
-
-def accepts(**decls):
-    """Decorator to check argument types.
-
-    Usage:
-
-    @check_args(name=str, text=str)
-    def parse_rule(name, text): ...
-    """
-    @decorator
-    def wrapper(func, *args, **kwargs):
-        code = func.func_code
-        fname = func.func_name
-        names = code.co_varnames[:code.co_argcount]
-        for argname, argtype in decls.iteritems():
-            try:
-                argval = args[names.index(argname)]
-            except IndexError:
-                argval = kwargs.get(argname)
-            if argval is None:
-                raise TypeError("%s(...): arg '%s' is null"
-                            % (fname, argname))
-            if not isinstance(argval, argtype):
-                raise TypeError("%s(...): arg '%s': type is %s, must be %s"
-                            % (fname, argname, type(argval), argtype))
-        return func(*args, **kwargs)
-    return wrapper
 
 
 def factor(n):
@@ -153,6 +130,48 @@ def check_groups_in_db(groups, db):
 
 def slice_loop(loopable, n):
     return list(it.islice(it.cycle(loopable), 0, n))
+
+
+@jit(nopython=True)
+def euclidean_distance(M):
+    """
+    Given matrix m, calculate the euclidean distance using the directional directive.
+
+    parameters
+    -------
+    M : np.ndarray (n, d)
+        The directional derivative (P - Q) in d-dimensions.
+
+    returns
+    -------
+    D : np.ndarray (n,)
+        the distance magnitudes
+    """
+    return np.sqrt(np.sum(np.square(M), axis=1))
+
+
+@jit(nopython=True)
+def direction_norm(M):
+    """
+    Given the matrix m of directional derivatives, calculate the direction norm.
+
+    parameters
+    ------
+    M : np.ndarray (n, d)
+        The directional derivative (P - Q) in d-dimensions.
+
+    returns
+    -------
+    D_n : np.ndarray (n,)
+        the distance magnitudes, normed
+    """
+    distance = euclidean_distance(M)
+    return (M.T/distance).T
+
+
+def max_norm(x):
+    """Assumes x is a vector"""
+    return x/np.max(x)
 
 
 def io_table_descriptions():

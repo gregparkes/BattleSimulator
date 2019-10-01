@@ -1,4 +1,4 @@
-# `battlesim` 0.26: Modelling and animating simulated battles between units in Python.
+# `battlesim` 0.3.0: Modelling and animating simulated battles between units in Python.
 
 The aim of this side project is to become familiar with Python classes and with primitive forms of animation and simulating environments. We map units onto a 2D plane and run simple simulations that involve them moving towards an enemy unit and attacking it. Rounds finish when one team has completely wiped out the other side, or we have reached the maximum number of timesteps.
 
@@ -16,6 +16,10 @@ The code for the primary engine is found in `battlesim/`, and implementations/ex
 * Pandas (>=0.25.1)
 * Matplotlib (>=3.1.1)
 * Numba (>=0.45)
+
+With the following for exporting the animation as a gif:
+
+* ffmpeg
 
 With the following for testing:
 
@@ -114,7 +118,9 @@ The example above, is some basic stats about Star Wars units as an illustration.
 
 ***
 
-## 
+## Future plans
+
+* Incorporation of 'maps' or changes to geography to change pathing of units from basic movements.
 
 ***
 

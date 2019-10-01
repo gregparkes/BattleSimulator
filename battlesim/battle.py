@@ -10,7 +10,7 @@ import numpy as np
 import pandas as pd
 
 from . import utils
-from . import simulator
+from . import simulator_fast as simulator
 from . import target
 from . import simplot
 from .distributions import dist, Distribution, get_options
@@ -241,7 +241,13 @@ class Battle(object):
 
         for (u, n), (start, end), func, team in zip(self.army_set_, segments, func_names, self.teams_):
             for i in range(start, end):
-                self.M_["target"][i] = f_dict[func](valid_targets[team], valid_allies[team], self.M_, i)
+                # AI template <pos>,<target>,<hp>,<enemies>,<allies>,<index>
+                self.M_["target"][i] = f_dict[func](self.M_["pos"],
+                       self.M_["target"],
+                       self.M_["hp"],
+                       valid_targets[team],
+                       valid_allies[team],
+                       i)
         return self
 
 
@@ -450,3 +456,11 @@ class Battle(object):
 
 
     composition_ = property(_get_unit_composition, doc="The composition of the Battle")
+
+    def __repr__(self):
+        if self.M_ is None:
+            return "bsm.Battle(init=False)"
+        elif self.sim_ is None:
+            return "bsm.Battle(init=True, n_armies={}, simulated=False)".format(self.n_armies_)
+        else:
+            return "bsm.Battle(init=True, n_armies={}, simulated=True)".format(self.n_armies_)

@@ -27,7 +27,7 @@ def test_simulate_battle():
     b = some_setup()
     # call with wrong types
     with pytest.raises(TypeError):
-        bsm.simulator.simulate_battle("hello", b._mapped_ai, max_step=100, acc_penalty=20.)
+        bsm.simulator_fast.simulate_battle("hello", b._mapped_ai, max_step=100, acc_penalty=20.)
 
     # call simulate battle with correct args
-    F = bsm.simulator.simulate_battle(b.M_, b._mapped_ai, max_step=100, acc_penalty=20.)
+    F = bsm.simulator_fast.simulate_battle(b.M_, b._mapped_ai, max_step=100, acc_penalty=20.)

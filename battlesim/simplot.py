@@ -8,10 +8,12 @@ Created on Fri Feb 22 14:30:45 2019
 import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib import animation
+import matplotlib.patches as patches
 import itertools as it
 
-from .simulator import frame_columns
+from .simulator_fast import frame_columns
 from .utils import check_columns, slice_loop
+from .background import uniform_tile
 
 # all functions to import
 __all__ = ["quiver_fight"]
@@ -22,11 +24,14 @@ def _loop_colors():
             "cyan", "yellow"]
 
 
-def quiver_fight(Frames, allegiance_label={}, allegiance_color={}):
+def quiver_fight(Frames, allegiance_label={}, allegiance_color={}, tile=True):
     """
     Generates an animated quiver plot with units moving around the arena
     and attacking each other. Requires the Frames object as output from a 'battle.simulate()'
     call.
+
+    Units that are alive appear as directional quivers, units that are dead
+    appear as crosses 'x'.
 
     We recommend you use this in conjunction with Jupyter notebook:
         HTML(bsm.quiver_fight(Frames).tojshtml())
@@ -40,6 +45,8 @@ def quiver_fight(Frames, allegiance_label={}, allegiance_color={}):
         maps allegiance in Frames["allegiance"] (k) to a label str (v)
     allegiance_color : dict
         maps allegiance in Frames["allegiance"] (k) to a color str (v)
+    tile : bool
+        If tile, color background with rectangles.
 
     Returns
     ------
@@ -49,6 +56,7 @@ def quiver_fight(Frames, allegiance_label={}, allegiance_color={}):
     check_columns(Frames, frame_columns())
 
     # set plt.context
+
     plt.rcParams["animation.html"] = "html5"
     # dataframe
     N_frames = Frames["frame"].unique().shape[0]
@@ -58,6 +66,12 @@ def quiver_fight(Frames, allegiance_label={}, allegiance_color={}):
     # find bounds
     ax.set_xlim(Frames["x"].min() - 1., Frames["x"].max() + 1.)
     ax.set_ylim(Frames["y"].min() - 1., Frames["y"].max() + 1.)
+
+    if tile:
+        T = uniform_tile(Frames["x"].min() - 1., Frames["x"].max() + 1., Frames["y"].min() - 1., Frames["y"].max() + 1.)
+        for t in T:
+            ax.add_patch(t)
+
     # hide axes labels
     ax.get_xaxis().set_visible(False)
     ax.get_yaxis().set_visible(False)

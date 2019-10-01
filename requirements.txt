@@ -1,6 +1,6 @@
 numpy
 pandas
 matplotlib
-seaborn
-datetime
-sys
+numba
+scipy
+pytest
