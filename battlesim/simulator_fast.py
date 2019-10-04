@@ -23,6 +23,21 @@ def frame_columns():
     return ["frame", "army", "allegiance", "alive", "x", "y", "dir_x", "dir_y"]
 
 
+
+def _copy_frame(Frames, M, i):
+    # copy over data from M into frames.
+    Frames["frame"][i] = i
+    Frames["pos"][i] = M["pos"]
+    Frames["target"][i] = M["target"]
+    Frames["hp"][i] = M["hp"]
+    # create direction norm
+    dnorm = utils.direction_norm(M["pos"][M["target"]] - M["pos"])
+    Frames["dpos"][i] = dnorm
+    Frames["team"][i] = M["team"]
+    Frames["group"][i] = M["group"]
+    return
+
+
 def _convert_to_pandas(frames):
     """
     Given the 'frames' from fast_simulate_battle, return a pd.Dataframe
@@ -37,7 +52,11 @@ def _convert_to_pandas(frames):
     return DF
 
 
-def simulate_battle(M, ai_map, max_step=100, acc_penalty=15., ret_frames=True):
+def simulate_battle(M,
+                    ai_map,
+                    max_step=100,
+                    acc_penalty=15.,
+                    ret_frames=True):
     """
     Given a Numpy Matrix of units, simulate a fight.
 
@@ -48,7 +67,7 @@ def simulate_battle(M, ai_map, max_step=100, acc_penalty=15., ret_frames=True):
     Parameters
     --------
     M : np.ndarray (units, )
-        A heterogenous matrix containing data values
+        A heterogenous matrix containing data values for units
     ai_map : dict
         A dictionary mapping groups (k) to a bsm.ai.* function (v)
     max_step : int
@@ -75,23 +94,8 @@ def simulate_battle(M, ai_map, max_step=100, acc_penalty=15., ret_frames=True):
                        ("group", np.uint8, 1)
                 ]
         )
-
-        def add_frame(M, i):
-            # copy over data from M into frames.
-            frames["frame"][i] = i
-            frames["pos"][i] = M["pos"]
-            frames["target"][i] = M["target"]
-            frames["hp"][i] = M["hp"]
-            # create direction norm
-            dnorm = utils.direction_norm(M["pos"][M["target"]] - M["pos"])
-            frames["dpos"][i] = dnorm
-            frames["team"][i] = M["team"]
-            frames["group"][i] = M["group"]
-            return
-
         # include the first frame.
-        add_frame(M, 0)
-
+        _copy_frame(frames, M, 0)
 
     while (t < max_step) and running:
 
@@ -103,7 +107,7 @@ def simulate_battle(M, ai_map, max_step=100, acc_penalty=15., ret_frames=True):
         ally_targets = [np.argwhere((M["hp"]>0) & (M["team"]==T)).flatten() for T in teams]
 
         # pre-compute the 'luck' of each unit with random numbers.
-        round_luck = np.random.rand(M.shape[0])
+        round_luck = np.random.rand(M.shape[0], 2)
 
         # iterate over units and check their life, target.
         for i in range(M.shape[0]):
@@ -125,20 +129,20 @@ def simulate_battle(M, ai_map, max_step=100, acc_penalty=15., ret_frames=True):
                     else:
                         running = False
 
-                # if not in range, move towards target
-                if dists[i] > M["range"][i]:
+                # if not in range, move towards target, or hit a chance (5%) and move forward anyway.
+                if dists[i] > M["range"][i] or round_luck[i, 1] < 0.05:
                     """# move unit towards attacking enemy."""
                     move.euclidean(M["pos"], M["speed"], dir_vec, dists, i)
                 else:
                     """# calculate the chance of hitting the opponent"""
                     h_chance = hit.basic_chance(M["acc"], M["dodge"], dists, i, M["target"][i], acc_penalty)
                     """if hit chance overcomes round luck.. deal damage to HP."""
-                    if h_chance > round_luck[i]:
+                    if h_chance > round_luck[i, 0]:
                         M["hp"][M["target"][i]] -= M["dmg"][i]
         t += 1
 
         if ret_frames:
-            add_frame(M, t)
+            _copy_frame(frames, M, t)
 
     if ret_frames:
         return _convert_to_pandas(frames[:t])

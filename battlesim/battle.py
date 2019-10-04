@@ -361,7 +361,10 @@ class Battle(object):
 
     """ ------------ CONVENIENCE PLOTTING FUNCTIONS ---------------------- """
 
-    def sim_jupyter(self, func=simplot.quiver_fight, create_html=False, cols={}):
+    def sim_jupyter(self,
+                    func=simplot.quiver_fight,
+                    create_html=False,
+                    cols={}):
         """
         This convenience method uses any saved 'sim_' object to generate the code
         to output to a Jupyter Notebook. Once must simply then do:
@@ -399,8 +402,10 @@ class Battle(object):
             return Q
 
 
-    def sim_export(self, filename="example_sim.gif",
-                   func=simplot.quiver_fight, cols={},
+    def sim_export(self,
+                   filename="example_sim.gif",
+                   func=simplot.quiver_fight,
+                   cols={},
                    writer="pillow"):
         """
         This convenience method uses any saved 'sim_' object to generate the code

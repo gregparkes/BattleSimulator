@@ -114,6 +114,10 @@ def get_segments(army_set):
     return s
 
 
+def minmax(X):
+    return (X - np.min(X)) / (np.max(X) - np.min(X))
+
+
 def io_table_columns():
     return [
         "Name", "Allegiance", "HP", "Damage", "Accuracy",

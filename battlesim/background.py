@@ -8,55 +8,113 @@ Created on Tue Oct  1 17:58:40 2019
 This file handles 'background' drawing on to the lovely matplotlib canvas.
 """
 
-import itertools as it
 import numpy as np
-from matplotlib import patches
 
-from . import utils
+__all__ = ["random_tile", "meshgrid_tile", "contour_tile"]
 
 
-def uniform_tile(xmin, xmax, ymin, ymax, tile_size=1, colors="random", alpha=.1):
+def draw_tiles(ax, X, dim, alpha=.1, **kwargs):
+    xmin, xmax, ymin, ymax = dim
+    ax.imshow(X, alpha=alpha, extent=[xmin, ymax, ymin, ymax], aspect="auto", **kwargs)
+    return
+
+
+def draw_contour(ax, x, y, z, fill=True, **kwargs):
+    if fill:
+        ax.contourf(x, y, z, **kwargs)
+    else:
+        ax.contour(x, y, z, **kwargs)
+    return
+
+
+def random_tile(ax,
+                dim=(0, 30, 0, 30),
+                alpha=.1):
     """
     Randomly tiles an area between xmin-xmax and ymin-ymax with random colours.
     By default this is a light background.
 
     Parameters
     -------
-    xmin : int
-        The x-minimum of the plot
-    xmax : int
-        The x-maximum of the plot
-    ymin: int
-        The y-minimum of the plot
-    ymax : int
-        The y-maximum of the plot
-    tile_size : int
-        The size of each tile.
-    colors : str
-        choose from [random, cycle], if cycle draws from utils.colorwheel
+    ax : matplotlib.ax
+        The axes
+    dim : tuple (4,)
+        xmin, xmax, ymin, ymax
     alpha : float
         alpha of all the tiles
 
     Returns
     -------
-    T : list of patches.Rectangle
-        rectangles to add to a matplotlib.plot
+    None
     """
-    valid_colors = ["random", "cycle"]
-
-    if colors not in valid_colors:
-        raise ValueError("colors option '{}' not found in {}".format(colors, valid_colors))
-
-    T = []
-    cyc = it.cycle(utils.colorwheel())
-
-    for i in range(int(xmin)-1, int(xmax)+1, int(tile_size)):
-        for j in range(int(ymin)-1, int(ymax)+1, int(tile_size)):
-            if colors=="random":
-                T.append(patches.Rectangle((i, j), tile_size, tile_size, fill=True, color=np.random.rand(3), alpha=alpha))
-            elif colors=="cycle":
-                T.append(patches.Rectangle((i, j), tile_size, tile_size, fill=True, color=next(cyc), alpha=alpha))
-    return T
+    xmin, xmax, ymin, ymax = dim
+    X = np.random.rand(xmax-xmin, ymax-ymin, 3)
+    # draw
+    draw_tiles(ax, X, dim, alpha=alpha)
 
 
+def meshgrid_tile(ax,
+                  dim=(0, 30, 0, 30),
+                  resolution=1.,
+                  alpha=1.,
+                  f = lambda x, y: x+y, cmap="binary_r"):
+    """
+    Tiles an area using a 'meshgrid function' between xmin-xmax and
+    ymin-ymax using a function.
 
+    Parameters
+    -------
+    ax : matplotlib.ax
+        The axes
+    dim : tuple (4,)
+        xmin, xmax, ymin, ymax
+    alpha : float
+        alpha of all the tiles
+    f : function
+        A function taking two parameters x and y, to return a meshgrid over z dimension.
+
+    Returns
+    -------
+    None
+    """
+    xmin, xmax, ymin, ymax = dim
+    x, y = np.arange(xmin, xmax, resolution), np.arange(ymin, ymax, resolution)
+    X, Y = np.meshgrid(x, y)
+    Z = f(X, Y)
+    # draw
+    draw_tiles(ax, Z, dim, alpha=alpha, cmap=cmap)
+
+
+def contour_tile(ax,
+                 dim=(0, 30, 0, 30),
+                 alpha=1.,
+                 resolution=.5,
+                 fill=True,
+                 f = lambda x, y: x+y, cmap="binary_r"):
+    """
+    Tiles an area using a 'contour function' between xmin-xmax and
+    ymin-ymax using a function.
+
+    Parameters
+    -------
+    ax : matplotlib.ax
+        The axes
+    dim : tuple (4,)
+        xmin, xmax, ymin, ymax
+    alpha : float
+        alpha of all the tiles
+    fill : bool
+        If true, uses contourf, else uses contour
+    f : function
+        A function taking two parameters x and y, to return a meshgrid over z dimension.
+
+    Returns
+    -------
+    None
+    """
+    xmin, xmax, ymin, ymax = dim
+    x, y = np.arange(xmin, xmax, resolution), np.arange(ymin, ymax, resolution)
+    X, Y = np.meshgrid(x, y)
+    Z = f(X, Y)
+    # draw
+    draw_contour(ax, x, y, Z, fill, cmap=cmap, alpha=alpha)

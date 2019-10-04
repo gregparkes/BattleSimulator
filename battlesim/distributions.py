@@ -55,7 +55,12 @@ def dist(**kws):
     dist_args = ["mean","var","loc","scale","sd","std","a","b","df"]
     dist_map = dict(zip(dist_args, ["loc","scale","loc","scale","scale","scale","a","b","df"]))
 
-    d = Distribution("normal")
+    # set the distribution first!
+    dist_names = [a for k, a in kws.items() if k in dist_keys]
+    if len(dist_names) == 0:
+        d = Distribution("normal")
+    else:
+        d = Distribution(dist_names[0])
     d_xk, d_yk = {}, {}
 
     # iterate over them all
@@ -75,13 +80,7 @@ def dist(**kws):
             keyword = keyword[:-2]
             dim = "y"
 
-        if keyword in dist_keys:
-            # test argument
-            if not isinstance(argument, str):
-                raise TypeError("argument '{}' must be of type [str] for distribution".format(argument))
-            # set the distribution object
-            d.dist_ = argument
-        elif keyword in dist_args:
+        if keyword in dist_args:
             # test argument
             if not isinstance(argument, (float, int, np.int, np.float, np.int64, np.float64)):
                 raise TypeError("argument '{}' must be of type [float, int] for distribution parameter".format(argument))
@@ -94,6 +93,8 @@ def dist(**kws):
             else:
                 d_xk[k_m] = argument
                 d_yk[k_m] = argument
+        elif keyword in dist_keys:
+            continue
         else:
             raise ValueError("keyword '{}' not found in {}".format(keyword, dist_keys+dist_args))
 
@@ -153,6 +154,7 @@ class Distribution(object):
             return
         for keyword, argument in x.items():
             if keyword not in get_options()["acc_params"][self._option_i]:
+                print(keyword, self._option_i, self._options)
                 raise ValueError("keyword '{}' does not belong in distribution '{}', which has {}"
                                  .format(keyword, self.dist_, self._options["acc_params"][self._option_i]))
         self._x_param = x
