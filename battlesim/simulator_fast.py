@@ -34,7 +34,7 @@ def _copy_frame(Frames, M, i):
     dnorm = utils.direction_norm(M["pos"][M["target"]] - M["pos"])
     Frames["dpos"][i] = dnorm
     Frames["team"][i] = M["team"]
-    Frames["group"][i] = M["group"]
+    Frames["utype"][i] = M["utype"]
     return
 
 
@@ -44,7 +44,7 @@ def _convert_to_pandas(frames):
     """
     steps, units = frames.shape
     DF = pd.concat([pd.DataFrame({
-        "frame": frames["frame"][s], "army": frames["group"][s],
+        "frame": frames["frame"][s], "army": frames["utype"][s],
         "allegiance": frames["team"][s], "alive": frames["hp"][s] > 0,
         "x": frames["pos"][s][:,0], "y": frames["pos"][s][:,1], "dir_x": frames["dpos"][s][:,0],
         "dir_y": frames["dpos"][s][:,1]
@@ -91,7 +91,7 @@ def simulate_battle(M,
                 (max_step+1, M.shape[0]),
                 dtype=[("frame", np.int64, 1), ("pos", np.float64, 2), ("target", np.int64, 1),
                        ("hp", np.float64, 1), ("dpos", np.float64, 2), ("team", np.uint8, 1),
-                       ("group", np.uint8, 1)
+                       ("utype", np.uint8, 1)
                 ]
         )
         # include the first frame.

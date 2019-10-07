@@ -11,6 +11,7 @@ import itertools as it
 import pandas as pd
 import functools
 import warnings
+import time
 from numba import jit
 
 
@@ -30,6 +31,13 @@ def check_list_type(L, t):
     return True
 
 
+def toflat(L):
+    """
+    Given nd-list, flatten to single dimension.
+    """
+    return list(it.chain.from_iterable(L))
+
+
 def colorwheel():
     return ["red", "blue", "green", "orange", "purple", "brown", "black",
             "cyan", "yellow"]
@@ -43,6 +51,76 @@ def check_in_list(L, sl):
         if l not in L:
             raise ValueError("element '{}' not found in super-list {}".format(l, L))
     return True
+
+
+def time_n(method, r=5, *args, **kws):
+    """
+    r for repeats
+    """
+    T = np.zeros(r+1,)
+    for i in range(r+1):
+        ts = time.time()
+        _ = method(*args, **kws)
+        T[i] = time.time() - ts
+    # drop the first example as it is always slowest
+    return T[1:]
+
+
+def timed(method, *args, **kw):
+    ts = time.time()
+    result = method(*args, **kw)
+    te = time.time()
+    diff = te - ts
+    """
+    Ranges : 0 to 80 (seconds)
+    81 to 4800 (minutes)
+    4801 to 100800 (hours)
+    100800 + (days)
+    """
+    if diff < 80:
+    	out_str = "%r: %2.2f s"
+    elif diff >= 80 and diff < 4800:
+    	out_str = "%r: %2.2f m"
+    	diff /= 60.
+    elif diff >= 4800 and diff < 100800:
+    	out_str = "%r: %2.2f h"
+    	diff /= 3600.
+    else:
+    	out_str = "%r: %2.2f d"
+    	diff /= 86400.
+
+    print(out_str % (method.__name__, (diff)))
+    return result
+
+
+def timeit(method):
+    def timed(*args, **kw):
+        ts = time.time()
+        result = method(*args, **kw)
+        te = time.time()
+        diff = te - ts
+        """
+        Ranges : 0 to 80 (seconds)
+        81 to 4800 (minutes)
+        4801 to 100800 (hours)
+        100800 + (days)
+        """
+        if diff < 80:
+        	out_str = "%r: %2.2f s"
+        elif diff >= 80 and diff < 4800:
+        	out_str = "%r: %2.2f m"
+        	diff /= 60.
+        elif diff >= 4800 and diff < 100800:
+        	out_str = "%r: %2.2f h"
+        	diff /= 3600.
+        else:
+        	out_str = "%r: %2.2f d"
+        	diff /= 86400.
+
+        print(out_str % (method.__name__, (diff)))
+        return result
+    return timed
+
 
 
 def is_twotuple(L, type1, type2):

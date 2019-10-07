@@ -8,7 +8,8 @@ from .battle import Battle
 from .distributions import *
 from .simplot import *
 from .imageplot import *
-from .legacy import *
+from . import legacy
+from . import unit_quant
 
-__version__ = "0.3.1"
+__version__ = "0.3.2"
 __name__ = "battlesim"

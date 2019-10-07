@@ -13,6 +13,9 @@ import itertools as it
 from .simulator_fast import frame_columns
 from .utils import check_columns, slice_loop
 from . import background
+from . import unit_quant
+
+from matplotlib.lines import Line2D
 
 # all functions to import
 __all__ = ["quiver_fight"]
@@ -25,7 +28,8 @@ def _loop_colors():
 
 def quiver_fight(Frames,
                  allegiance_label={},
-                 allegiance_color={}):
+                 allegiance_color={},
+                 quant_size_map={}):
     """
     Generates an animated quiver plot with units moving around the arena
     and attacking each other. Requires the Frames object as output from a 'battle.simulate()'
@@ -46,8 +50,8 @@ def quiver_fight(Frames,
         maps allegiance in Frames["allegiance"] (k) to a label str (v)
     allegiance_color : dict
         maps allegiance in Frames["allegiance"] (k) to a color str (v)
-    bg_tile : str
-        Chooses a background tile to color, ['random', 'meshgrid', 'contour', 'none'] or None
+    quantify_size : dict
+        If True, use unit_quant to estimate unit value then set this size to quivers.
 
     Returns
     ------
@@ -73,11 +77,8 @@ def quiver_fight(Frames,
     # hide axes labels
     ax.get_xaxis().set_visible(False)
     ax.get_yaxis().set_visible(False)
-    # first frame
-    frame0 = Frames.query("(frame==0) & alive")
     # use the numerical allegiance.
     allegiances = Frames["allegiance"].unique()
-
     # create defaults if the dictionary size does not match the allegiance flags
     if len(allegiance_label) != allegiances.shape[0]:
         allegiance_label = dict(zip(allegiances.tolist(),
@@ -85,59 +86,64 @@ def quiver_fight(Frames,
     if len(allegiance_color) != allegiances.shape[0]:
         allegiance_color = dict(zip(allegiances.tolist(),
                                     slice_loop(_loop_colors(), allegiances.shape[0])))
+    if len(quant_size_map) == 0:
+        raise ValueError("quant_size MUST be set")
+
+    # unique units.
+    Uunits = Frames["army"].unique()
+    combs = list(it.product(allegiances, Uunits))
+
     """
     Create two groups for each allegiance:
         1. The units that are alive, are arrows.
         2. The units that are dead, are crosses 'x'
     """
-    alive = []
+
+    qalive = []
     dead = []
 
-    # for each allegiance, assign ax quiver, plot object to lists
-    for k in allegiances:
-        team_alive = ax.quiver(frame0.query("allegiance==@k").x,
-                          frame0.query("allegiance==@k").y,
-                          frame0.query("allegiance==@k").dir_x,
-                          frame0.query("allegiance==@k").dir_y,
-                          color=allegiance_color[k],
-                          label=allegiance_label[k],
-                          alpha=.5, scale=30,
-                          width=0.015, pivot="mid")
-        alive.append(team_alive)
+    for a, un in combs:
+        f1 = Frames.query("(allegiance==@a) & (army==@un) & (frame==0) & alive")
+        team_alive = ax.quiver(f1.x, f1.y, f1.dir_x, f1.dir_y, color=allegiance_color[a], alpha=.5,
+                               scale=30*(quant_size_map[un]+1.), width=0.015, pivot="mid")
+        qalive.append(team_alive)
 
-        team_dead, = ax.plot([], [], 'x', color=allegiance_color[k], alpha=.2, markersize=5.)
+        team_dead, = ax.plot([], [], 'x', color=allegiance_color[a], alpha=.2, markersize=5.)
         dead.append(team_dead)
 
     # configure legend, extras.
-    ax.legend(loc="right")
+    # design custom legend
+    custom_lines = [Line2D([0], [0], color=allegiance_color[a], lw=4) for a in allegiances]
+    ax.legend(custom_lines, [allegiance_label[a] for a in allegiances])
     fig.tight_layout()
     plt.close()
 
+
     # an initialisation function = to plot at the beginning.
     def init():
-        for j, k in enumerate(allegiances):
-            new_alive = Frames.query("(frame == 0) & (allegiance == @k) & (alive)")
-            new_dead = Frames.query("(frame == 0) & (allegiance == @k) & (not alive)")
-
+        for j, (a, un) in enumerate(combs):
+            new_alive = Frames.query("(allegiance==@a) & (army==@un) & (frame==0) & alive")
+            new_dead = Frames.query("(frame == 0) & (allegiance == @a) & (not alive) & (army==@un)")
             if len(new_alive) > 0:
-                alive[j].set_UVC(new_alive["dir_x"], new_alive["dir_y"])
+                qalive[j].set_UVC(new_alive["dir_x"], new_alive["dir_y"])
             if len(new_dead) > 0:
                 dead[j].set_data(new_dead["x"], new_dead["y"])
-        return (*alive, *dead)
+
+        return (*qalive, *dead)
 
 
     # animating the graph with step i
     def animate(i):
-        for j, k in enumerate(allegiances):
-            new_alive = Frames.query("(frame == @i) & (allegiance == @k) & (alive)")
-            new_dead = Frames.query("(frame == @i) & (allegiance == @k) & (not alive)")
-
+        for j, (a, un) in enumerate(combs):
+            new_alive = Frames.query("(frame == @i) & (allegiance == @a) & (alive) & (army == @un)")
+            new_dead = Frames.query("(frame == @i) & (allegiance == @a) & (not alive) & (army==@un)")
             if len(new_alive) > 0:
-                alive[j].set_offsets(np.vstack((new_alive["x"], new_alive["y"])).T)
-                alive[j].set_UVC(new_alive["dir_x"], new_alive["dir_y"])
+                qalive[j].set_offsets(np.vstack((new_alive["x"], new_alive["y"])).T)
+                qalive[j].set_UVC(new_alive["dir_x"], new_alive["dir_y"])
             if len(new_dead) > 0:
                 dead[j].set_data(new_dead["x"], new_dead["y"])
-        return (*alive, *dead)
+
+        return (*qalive, *dead)
 
 
     return animation.FuncAnimation(fig, animate, init_func=init,

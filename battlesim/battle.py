@@ -14,6 +14,7 @@ from . import simulator_fast as simulator
 from . import target
 from . import simplot
 from .distributions import dist, Distribution, get_options
+from . import unit_quant
 
 
 class Battle(object):
@@ -72,9 +73,10 @@ class Battle(object):
         utils.check_groups_in_db(self.army_set_, self.db_)
 
         self.M_ = np.zeros((self.N_), dtype=[
-            ("team",np.uint8,1),("group",np.uint8,1),("pos",np.float64,2),("hp",np.float64,1),
+            ("team",np.uint8,1),("utype",np.uint8,1),("pos",np.float64,2),("hp",np.float64,1),
             ("range",np.float64,1),("speed",np.float64,1),("acc",np.float64,1),
-            ("dodge",np.float64,1),("dmg",np.float64,1),("target",np.int64,1)
+            ("dodge",np.float64,1),("dmg",np.float64,1),("target",np.int64,1),
+            ("group",np.uint8,1)
         ])
 
         segments = utils.get_segments(army_set)
@@ -87,6 +89,7 @@ class Battle(object):
         # set initial values.
         for i, ((u, n), (start, end), team) in enumerate(zip(self.army_set_, segments, self.teams_)):
             self.M_["team"][start:end] = team
+            self.M_["utype"][start:end] = np.argwhere(self.db_.index == u).flatten()[0]
             self.M_["group"][start:end] = i
             self.M_["hp"][start:end] = self.db_.loc[u,"HP"]
             self.M_["range"][start:end] = self.db_.loc[u,"Range"]
@@ -393,8 +396,11 @@ class Battle(object):
         if len(cols) <= 0:
             cols = utils.slice_loop(simplot._loop_colors(), len(self.allegiances_))
 
-        # call plotting function
-        Q = func(self.sim_, labels, cols)
+        # quantify size by value
+        qscore = unit_quant.rank_score(self.db_).reset_index(drop=True).to_dict()
+
+        # call plotting function - with
+        Q = func(self.sim_, labels, cols, qscore)
 
         if create_html:
             return Q.to_jshtml()
@@ -438,8 +444,11 @@ class Battle(object):
         if len(cols) <= 0:
             cols = utils.slice_loop(simplot._loop_colors(), len(self.allegiances_))
 
+        # quantify size by value
+        qscore = unit_quant.rank_score(self.db_).reset_index(drop=True).to_dict()
+
         # call function
-        Q = func(self.sim_, labels, cols)
+        Q = func(self.sim_, labels, cols, qscore)
 
         #save
         Q.save(filename,writer=writer)

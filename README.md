@@ -1,4 +1,4 @@
-# `battlesim` 0.3.1: Modelling and animating simulated battles between units in Python.
+# `battlesim` 0.3.2: Modelling and animating simulated battles between units in Python.
 
 The aim of this side project is to become familiar with Python classes and with primitive forms of animation and simulating environments. We map units onto a 2D plane and run simple simulations that involve them moving towards an enemy unit and attacking it. Rounds finish when one team has completely wiped out the other side, or we have reached the maximum number of timesteps.
 
@@ -111,7 +111,8 @@ As well as a fully-fledged package simulator, you can find teaching material in 
 Material covered so far:
 
 1. Basics, including importing the dataset, the `Unit` class, basic simulation
-2. Improving the `Unit` class and simulation early-stopping for performance. 
+2. Improving the `Unit` class and simulation early-stopping for performance.
+3. Plotting simulations and performance-driven development
 
 This is still in active development retracing the steps of the project. All legacy functions associated with this can be found in the `battlesim/legacy.py` document.
 

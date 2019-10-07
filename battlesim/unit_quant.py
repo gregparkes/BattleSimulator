@@ -29,20 +29,20 @@ def rank_score(db, w=None):
     -------
     db : pd.DataFrame
         The dataset in question.
-    w : np.ndarray (6, ) [0..1]
+    w : np.ndarray (4, ) [0..1]
         Weights for each rankable column. Currently six.
-
+        [Damage, Range, Movement, HP]
     Returns
     -------
     p : pd.Series
         The scores for each unit.
     """
     if w is None:
-        w = np.ones(6,)
+        w = np.ones(4,)
     else:
-        assert len(w) == 6, "len(w) must equal 6"
+        assert len(w) == 4, "len(w) must equal 6"
 
-    rankable_columns = ["Damage","Range","Movement Speed", "Miss", "HP", "Accuracy"]
+    rankable_columns = ["Damage","Range","Movement Speed", "HP"]
     # check they are there!
     utils.check_in_list(db.columns.tolist(), rankable_columns)
 
