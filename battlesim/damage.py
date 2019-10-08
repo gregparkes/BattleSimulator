@@ -11,3 +11,8 @@ from numba import jit
 @jit(nopython=True)
 def basic(hp, target, damage, i):
     hp[target[i]] -= damage[i]
+
+
+@jit(nopython=True)
+def heal(hp, target, damage, i):
+    hp[target[i]] += damage[i]

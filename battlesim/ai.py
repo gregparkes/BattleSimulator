@@ -52,7 +52,7 @@ def hit_and_run(pos, speed, mrange, acc, dodge, target, dmg, hp, luck, distances
     if (speed[i] > speed[target[i]]) and (mrange[i] > mrange[target[i]]):
         # if we're out of range, move towards
         if distances[i] > mrange[i]:
-            # move towards unit.
+            """# move towards unit."""
             move.to_enemy(pos, speed, dd, distances, i)
         # else if the enemy is in range, back off
         elif distances[i] < mrange[target[i]]:

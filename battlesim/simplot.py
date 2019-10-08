@@ -63,7 +63,7 @@ def quiver_fight(Frames,
     # set plt.context
     plt.rcParams["animation.html"] = "html5"
     # dataframe
-    N_frames = Frames["frame"].unique().shape[0]
+    N_frames = Frames.index.unique().shape[0]
     # create plot
     fig = plt.figure(figsize=(8,6))
     ax = fig.add_subplot(111)
@@ -103,7 +103,7 @@ def quiver_fight(Frames,
     dead = []
 
     for a, un in combs:
-        f1 = Frames.query("(allegiance==@a) & (army==@un) & (frame==0) & alive")
+        f1 = Frames.loc[0].query("(allegiance==@a) & (army==@un) & alive")
         team_alive = ax.quiver(f1.x, f1.y, f1.dir_x, f1.dir_y, color=allegiance_color[a], alpha=.5,
                                scale=30*(quant_size_map[un]+1.), width=0.015, pivot="mid")
         qalive.append(team_alive)
@@ -121,8 +121,9 @@ def quiver_fight(Frames,
 
     # an initialisation function = to plot at the beginning.
     def init():
+
         for j, (a, un) in enumerate(combs):
-            new_alive = Frames.query("(allegiance==@a) & (army==@un) & (frame==0) & alive")
+            new_alive = Frames.loc[0].query("(allegiance==@a) & (army==@un) & alive")
             if len(new_alive) > 0:
                 qalive[j].set_UVC(new_alive["dir_x"], new_alive["dir_y"])
 
@@ -132,8 +133,8 @@ def quiver_fight(Frames,
     # animating the graph with step i
     def animate(i):
         for j, (a, un) in enumerate(combs):
-            new_alive = Frames.query("(frame == @i) & (allegiance == @a) & (alive) & (army == @un)")
-            new_dead = Frames.query("(frame == @i) & (allegiance == @a) & (not alive) & (army==@un)")
+            new_alive = Frames.loc[i].query("(allegiance == @a) & (alive) & (army == @un)")
+            new_dead = Frames.loc[i].query("(allegiance == @a) & (not alive) & (army==@un)")
             if len(new_alive) > 0:
                 qalive[j].set_offsets(np.vstack((new_alive["x"], new_alive["y"])).T)
                 qalive[j].set_UVC(new_alive["dir_x"], new_alive["dir_y"])

@@ -11,7 +11,6 @@ import pandas as pd
 import numpy as np
 
 from . import utils
-from . import ai
 
 ############################################################################
 
@@ -19,7 +18,7 @@ __all__ = ["simulate_battle"]
 
 
 def frame_columns():
-    return ["frame", "army", "allegiance", "alive", "x", "y", "dir_x", "dir_y"]
+    return ["army", "allegiance", "alive", "x", "y", "dir_x", "dir_y"]
 
 
 def _copy_frame(Frames, M, i):
@@ -41,12 +40,13 @@ def _convert_to_pandas(frames):
     Given the 'frames' from fast_simulate_battle, return a pd.Dataframe
     """
     steps, units = frames.shape
+    # use frame as index to reduce memory.
     DF = pd.concat([pd.DataFrame({
-        "frame": frames["frame"][s], "army": frames["utype"][s],
+        "army": frames["utype"][s],
         "allegiance": frames["team"][s], "alive": frames["hp"][s] > 0,
         "x": frames["pos"][s][:,0], "y": frames["pos"][s][:,1], "dir_x": frames["dpos"][s][:,0],
         "dir_y": frames["dpos"][s][:,1]
-    }) for s in range(steps)])
+    }, index=frames["frame"][s]) for s in range(steps)])
     return DF
 
 
@@ -92,19 +92,20 @@ def simulate_battle(M,
                        ("utype", np.uint8, 1)
                 ]
         )
-        # include the first frame.
-        _copy_frame(frames, M, 0)
 
     while (t < max_step) and running:
+
+        # copy a frame
+        if ret_frames:
+            _copy_frame(frames, M, t)
 
         """# pre-compute the direction derivatives and magnitude/distance for each unit to it's target in batch."""
         dir_vec = M["pos"][M["target"]] - M["pos"]
         dists = utils.euclidean_distance(dir_vec)
-        # pre-compute target matrices at each time t rather than on each unit.
+        """precompute enemy and ally target listings"""
         enemy_targets = [np.argwhere((M["hp"]>0) & (M["team"]!=T)).flatten() for T in teams]
         ally_targets = [np.argwhere((M["hp"]>0) & (M["team"]==T)).flatten() for T in teams]
-
-        # pre-compute the 'luck' of each unit with random numbers.
+        """# pre-compute the 'luck' of each unit with random numbers."""
         round_luck = np.random.rand(M.shape[0], 2)
 
         # iterate over units and check their life, target.
@@ -127,8 +128,8 @@ def simulate_battle(M,
                     else:
                         running = False
 
-                # AI-based decision for attack.
-                decision_map[M["team"][i]](
+                # AI-based decision for attack/defend.
+                decision_map[M["group"][i]](
                      # variables
                      M["pos"], M["speed"], M["range"], M["acc"], M["dodge"],
                      M["target"], M["dmg"], M["hp"], round_luck, dists, dir_vec, i
@@ -136,10 +137,8 @@ def simulate_battle(M,
 
         t += 1
 
-        if ret_frames:
-            _copy_frame(frames, M, t)
-
     if ret_frames:
+        _copy_frame(frames, M, t)
         return _convert_to_pandas(frames[:t])
     else:
         return np.asarray([np.argwhere((M["hp"]>0) & (M["team"]==T)).flatten().shape[0] for T in teams])

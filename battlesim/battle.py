@@ -8,10 +8,9 @@ Created on Fri Jul  5 17:39:42 2019
 
 import numpy as np
 import pandas as pd
-import warnings
 
 from . import utils
-from .simulator_fast import simulate_battle as simulate
+from .simulator_fast import simulate_battle as sim_battle
 from . import target
 from . import simplot
 from . import ai
@@ -31,9 +30,27 @@ class Battle(object):
 
     ####################### HIDDEN FUNCTIONS ##############################
 
-    def _plot_simulation(self, func, cols):
+
+    def _dataset(self, n):
+        return np.zeros((n), dtype=[
+            ("team",np.uint8,1),("utype",np.uint8,1),("pos",np.float64,2),("hp",np.float64,1),
+            ("range",np.float64,1),("speed",np.float64,1),("acc",np.float64,1),
+            ("dodge",np.float64,1),("dmg",np.float64,1),("target",np.int64,1),
+            ("group",np.uint8,1)
+        ])
+
+
+    def _is_instantiated(self):
+        if self.M_ is None:
+            raise TypeError("'create_army' has not been called - there are no units.")
+
+
+    def _is_simulated(self):
         if self.sim_ is None:
             raise AttributeError("No simulation has occured, no presense of battle.sim_ object.")
+
+
+    def _plot_simulation(self, func, cols):
         labels = self.allegiances_.to_dict()
         if len(cols) <= 0:
             cols = utils.slice_loop(simplot._loop_colors(), len(self.allegiances_))
@@ -44,6 +61,31 @@ class Battle(object):
         # call plotting function - with
         Q = func(self.sim_, labels, cols, qscore)
         return Q
+
+
+    def _assign_initial_targets(self, init_ai):
+
+        self._is_instantiated()
+
+        utils.check_in_list(target.get_init_function_names(), init_ai)
+        utils.check_list_type(init_ai, str)
+
+        f_dict = target.get_map_functions()
+        segments = utils.get_segments(self.army_set_)
+
+        # create valid_targets set
+        valid_targets = [np.argwhere((self.M_["team"]!=T)).flatten() for T in np.unique(self.M_["team"])]
+        valid_allies = [np.argwhere((self.M_["team"]==T)).flatten() for T in np.unique(self.M_["team"])]
+
+        for (u, n), (start, end), func, team in zip(self.army_set_, segments, init_ai, self.teams_):
+            for i in range(start, end):
+                # AI template <pos>,<target>,<hp>,<enemies>,<allies>,<index>
+                self.M_["target"][i] = f_dict[func](self.M_["pos"],
+                       self.M_["target"],
+                       self.M_["hp"],
+                       valid_targets[team],
+                       valid_allies[team],
+                       i)
 
 
     ###################### INIT FUNCTION #####################################
@@ -93,12 +135,7 @@ class Battle(object):
         # check that groups exist in army_set
         utils.check_groups_in_db(self.army_set_, self.db_)
 
-        self.M_ = np.zeros((self.N_), dtype=[
-            ("team",np.uint8,1),("utype",np.uint8,1),("pos",np.float64,2),("hp",np.float64,1),
-            ("range",np.float64,1),("speed",np.float64,1),("acc",np.float64,1),
-            ("dodge",np.float64,1),("dmg",np.float64,1),("target",np.int64,1),
-            ("group",np.uint8,1)
-        ])
+        self.M_ = self._dataset(self.N_)
 
         segments = utils.get_segments(army_set)
         self.teams_ = np.asarray([self.db_.loc[U[0],"allegiance_int"] for U in self.army_set_])
@@ -166,8 +203,7 @@ class Battle(object):
         self
         """
         # if none for distributions, apply same as before.
-        if self.M_ is None:
-            raise AttributeError("create_army() has not been called, no positions to allocate")
+        self._is_instantiated()
 
         self.dname_ = []
 
@@ -216,7 +252,7 @@ class Battle(object):
         return self
 
 
-    @utils.deprecated
+    @utils.to_remove
     def set_position(self, positions):
         """
         Set locations to each 'army set' using direct positional coordinates in a numpy.array_like object.
@@ -230,10 +266,8 @@ class Battle(object):
         -------
         self
         """
-        warnings.warn("set_position will be removed in version 0.4.0", FutureWarning)
+        self._is_instantiated()
 
-        if self.M_ is None:
-            raise AttributeError("create_army() has not been called, no positions to allocate to")
         if not isinstance(positions, np.ndarray):
             raise TypeError("positions must be of type [np.ndarray]")
         if positions.shape[1] != 2:
@@ -263,35 +297,18 @@ class Battle(object):
         -------
         self
         """
+        self._is_instantiated()
+
         if isinstance(func_names, str):
             # set the string for all.
-            func_names = [func_names] * self.n_armies_
-            self.init_ai_ = dict(zip(range(self.n_armies_), func_names))
+            self.init_ai_ = func_names = [func_names] * self.n_armies_
         elif isinstance(func_names, (list, tuple)) and (len(func_names) == self.n_armies_):
-            self.init_ai_ = dict(zip(range(self.n_armies_), func_names))
+            self.init_ai_ = func_names
         else:
             raise AttributeError("ai_funcs is wrong type or length.")
 
-        if self.M_ is None:
-            raise TypeError("'M' must be initialised.")
-        utils.check_in_list(target.get_init_function_names(), func_names)
-        utils.check_list_type(func_names, str)
+        self._assign_initial_targets(func_names)
 
-        f_dict = target.get_map_functions()
-        segments = utils.get_segments(self.army_set_)
-        # create valid_targets set
-        valid_targets = [np.argwhere((self.M_["team"]!=T)).flatten() for T in np.unique(self.M_["team"])]
-        valid_allies = [np.argwhere((self.M_["team"]==T)).flatten() for T in np.unique(self.M_["team"])]
-
-        for (u, n), (start, end), func, team in zip(self.army_set_, segments, func_names, self.teams_):
-            for i in range(start, end):
-                # AI template <pos>,<target>,<hp>,<enemies>,<allies>,<index>
-                self.M_["target"][i] = f_dict[func](self.M_["pos"],
-                       self.M_["target"],
-                       self.M_["hp"],
-                       valid_targets[team],
-                       valid_allies[team],
-                       i)
         return self
 
 
@@ -310,20 +327,21 @@ class Battle(object):
         -------
         self
         """
-        if isinstance(func_names, str):
-            func_names = [func_names]*self.n_armies_
-            self.rolling_ai_ = dict(zip(range(self.n_armies_), func_names))
-        elif isinstance(func_names, (list, tuple)):
-            self.rolling_ai_ = dict(zip(range(self.n_armies_), func_names))
+        self._is_instantiated()
 
-        if self.M_ is None:
-            raise TypeError("'M' must be initialised.")
+        if isinstance(func_names, str):
+            self.rolling_ai_ = func_names = [func_names]*self.n_armies_
+        elif isinstance(func_names, (list, tuple)):
+            self.rolling_ai_ = func_names
+
         utils.check_in_list(target.get_init_function_names(), func_names)
         utils.check_list_type(func_names, str)
 
         # map these strings to actual functions, ready for simulate.
         mappp = target.get_map_functions()
-        self._rolling_map = dict(zip(range(self.n_armies_), [mappp[self.rolling_ai_[f]] for f in self.rolling_ai_]))
+        army_to_fname = dict(zip(range(self.n_armies_), func_names))
+
+        self._rolling_map = dict(zip(range(self.n_armies_), [mappp[army_to_fname[f]] for f in army_to_fname]))
         return self
 
 
@@ -347,16 +365,18 @@ class Battle(object):
         self
         """
         if isinstance(decision, str):
-            decision = [decision] * self.n_armies_
+            self.decision_ai_ = decision = [decision] * self.n_armies_
         if isinstance(decision, (list, tuple)):
             utils.check_in_list(ai.get_function_names(), decision)
             utils.check_list_type(decision, str)
-            if self.M_ is None:
-                raise TypeError("'M' must be initialised.")
-            self.decision_ai_ = dict(zip(range(self.n_armies_), decision))
+            self._is_instantiated()
+
+            self.decision_ai_ = decision
             mappp = ai.get_function_map()
+            army_to_dname = dict(zip(range(self.n_armies_), decision))
+            # map id to function
             self._decision_map = dict(zip(range(self.n_armies_),
-                                          [mappp[self.decision_ai_[f]] for f in self.decision_ai_]))
+                                          [mappp[army_to_dname[f]] for f in army_to_dname]))
 
         else:
             raise TypeError("'ai' must be [str, list, tuple]")
@@ -398,16 +418,17 @@ class Battle(object):
 
         Returns pd.DataFrame of frames.
         """
-        if self.M_ is None:
-            raise AttributeError("No army sets are initialised, call create_army() before")
-        else:
-            # we cache a copy of the sim as well for convenience
-            self.sim_ = simulate(np.copy(self.M_),
-                                 self._rolling_map,
-                                 self._decision_map,
-                                 ret_frames=True,
-                                 **kwargs)
-            return self.sim_
+        self._is_instantiated()
+
+        # firstly assign initial AI targets.
+        self._assign_initial_targets(self.init_ai_)
+        # we cache a copy of the sim as well for convenience
+        self.sim_ = sim_battle(np.copy(self.M_),
+                             self._rolling_map,
+                             self._decision_map,
+                             ret_frames=True,
+                             **kwargs)
+        return self.sim_
 
 
     def simulate_k(self, k=10, **kwargs):
@@ -429,14 +450,17 @@ class Battle(object):
 
         Returns the victory for each k iteration, for each team.
         """
+        self._is_instantiated()
+
         if k < 1:
             raise ValueError("'k' must be at least 1")
-        if self.M_ is None:
-            raise ValueError("Army is not initialised, cannot simulate!")
         else:
             Z = np.zeros((k,2), dtype=np.int64)
             for i in range(k):
-                team_counts = simulate(np.copy(self.M_),
+                # firstly assign initial AI targets.
+                self._assign_initial_targets(self.init_ai_)
+                # run simulation
+                team_counts = sim_battle(np.copy(self.M_),
                                        self._rolling_map,
                                        self._decision_map,
                                        ret_frames=False,
@@ -474,6 +498,7 @@ class Battle(object):
         s : str/object
             HTML code to feed into HTML(s)
         """
+        self._is_simulated()
         # call plotting function - with
         Q = self._plot_simulation(func, cols)
 
@@ -508,6 +533,7 @@ class Battle(object):
         -------
         None
         """
+        self._is_simulated()
         # append to end if not present
         if not filename.endswith(".gif"):
             filename.append(".gif")
@@ -523,20 +549,28 @@ class Battle(object):
     """ ---------------------- MISC --------------------------------------- """
 
     def _get_unit_composition(self):
-        if self.M_ is None:
-            return None
+        self._is_instantiated()
         d = {}
         d["unit"] = [name for name, _ in self.army_set_]
         d["allegiance"] = [self.db_.loc[u, "Allegiance"] for u,_ in self.army_set_]
         d["n"] = [n for _, n in self.army_set_]
         d["position"] = self.dname_
-        d["init_ai"] = list(self.init_ai_.values())
-        d["rolling_ai"] = list(self.rolling_ai_.values())
-        d["decision_ai"] = list(self.decision_ai_.values())
+        d["init_ai"] = self.init_ai_
+        d["rolling_ai"] = self.rolling_ai_
+        d["decision_ai"] = self.decision_ai_
         return pd.DataFrame(d)
 
 
+    def _get_n_allegiance(self):
+        self._is_instantiated()
+        d = {}
+        d["allegiance"] = [self.db_.loc[u, "Allegiance"] for u,_ in self.army_set_]
+        d["n"] = [n for _, n in self.army_set_]
+        return pd.DataFrame(d).groupby("allegiance")["n"].sum()
+
+
     composition_ = property(_get_unit_composition, doc="The composition of the Battle")
+    n_allegiance_ = property(_get_n_allegiance, doc="get the number of units for each side")
 
     def __repr__(self):
         if self.M_ is None:
