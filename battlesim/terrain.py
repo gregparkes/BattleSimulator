@@ -33,8 +33,9 @@ def _generate_random_gauss(pos, dim, res=1.):
     return z
 
 
-def _generate_random_terrain(xmin, xmax, ymin, ymax, resolution=1., n_gauss=100):
+def _generate_random_terrain(dim, resolution=1., n_gauss=100):
 
+    xmin, xmax, ymin, ymax = dim
     Nx = (xmax - xmin); Ny = (ymax - ymin)
     # define meshgrid
     x, y, = np.mgrid[xmin:xmax:resolution, ymin:ymax:resolution]
@@ -54,6 +55,13 @@ def _generate_random_terrain(xmin, xmax, ymin, ymax, resolution=1., n_gauss=100)
     return utils.minmax(Z)
 
 
+def _map_function(dim, res, f):
+    xmin, xmax, ymin, ymax = dim
+    x, y = np.arange(xmin, xmax, res), np.arange(ymin, ymax, res)
+    X, Y = np.meshgrid(x, y)
+    return f(X, Y)
+
+
 class Terrain(object):
     """
     The Terrain object is responsible for generating a terrain or map
@@ -68,7 +76,7 @@ class Terrain(object):
     The terrain object is responsible not only for the type of background but the
     way in which it is displayed.
     """
-    def __init__(self, dim, form="random"):
+    def __init__(self, dim, res=.1, form="random"):
         """
         Defines a Terrain object.
 
@@ -76,12 +84,36 @@ class Terrain(object):
         -------
         dim : tuple (4,)
             x-min, x-max, y-min and y-max dimensions of the associated area.
+        res : float
+            The resolution of the map. Higher resolutions are slower but more accurate.
         form : str
             Determines what type of terrain to generate. Choose from ['random', 'grid', 'contour']
                 -random will choose 'random' points in the map to elevate into circular hills (essentially)
                 -grid applies a function z = f(x, y) and discretizes this into square boxes.
                 -contour applies a function z = f(x, y) and plots filled-contours of the background.
-
         """
+        self.form_ = form
+        self.dim_ = dim
+        self.res_ = res
 
 
+    def generate(self, f=None):
+        """
+        Generates the terrain using a function.
+
+        Parameters
+        -------
+        f : function or None
+            If None, uses 'random', else uses a map_function if ['grid', 'contour']
+
+        Returns
+        -------
+        Z : np.ndarray
+            The contour grid for the plane.
+        """
+        if f is None or self.form_ == "random":
+            self.Z_ = _generate_random_terrain(self.dim_, self.res_)
+        elif self.form_ == "grid" or self.form_ == "contour":
+            self.Z_ = _map_function(self.dim_, self.res_, f)
+        else:
+            raise ValueError("form_ {} must be in ['random', 'grid', 'contour']".format(self.form_))

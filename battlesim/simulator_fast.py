@@ -10,9 +10,8 @@ This class handles the primary simulator functions given some data.
 import pandas as pd
 import numpy as np
 
-from . import move
 from . import utils
-from . import hit
+from . import ai
 
 ############################################################################
 
@@ -21,7 +20,6 @@ __all__ = ["simulate_battle"]
 
 def frame_columns():
     return ["frame", "army", "allegiance", "alive", "x", "y", "dir_x", "dir_y"]
-
 
 
 def _copy_frame(Frames, M, i):
@@ -53,9 +51,9 @@ def _convert_to_pandas(frames):
 
 
 def simulate_battle(M,
-                    ai_map,
+                    target_map,
+                    decision_map,
                     max_step=100,
-                    acc_penalty=15.,
                     ret_frames=True):
     """
     Given a Numpy Matrix of units, simulate a fight.
@@ -68,12 +66,12 @@ def simulate_battle(M,
     --------
     M : np.ndarray (units, )
         A heterogenous matrix containing data values for units
-    ai_map : dict
+    target_map : dict
+        A dictionary mapping groups (k) to a bsm.target.* function (v)
+    decision_map : dict
         A dictionary mapping groups (k) to a bsm.ai.* function (v)
     max_step : int
         The maximum number of steps
-    acc_penalty : float
-        Penalties applied to global accuracy
     ret_frames : bool
         If True, save each frame, else, return the allegiance that is victorious.
 
@@ -118,7 +116,7 @@ def simulate_battle(M,
                     if enemy_targets[M["team"][i]].shape[0] > 0:
                         """# use ai_map to dictionary-map the group number to the appropriate AI function"""
                         """ Arguments: positions, targets, hp, enemies, allies, index, [extras]"""
-                        M["target"][i] = ai_map[M["group"][i]](
+                        M["target"][i] = target_map[M["group"][i]](
                                 M["pos"],
                                 M["target"],
                                 M["hp"],
@@ -129,16 +127,13 @@ def simulate_battle(M,
                     else:
                         running = False
 
-                # if not in range, move towards target, or hit a chance (5%) and move forward anyway.
-                if dists[i] > M["range"][i] or round_luck[i, 1] < 0.05:
-                    """# move unit towards attacking enemy."""
-                    move.euclidean(M["pos"], M["speed"], dir_vec, dists, i)
-                else:
-                    """# calculate the chance of hitting the opponent"""
-                    h_chance = hit.basic_chance(M["acc"], M["dodge"], dists, i, M["target"][i], acc_penalty)
-                    """if hit chance overcomes round luck.. deal damage to HP."""
-                    if h_chance > round_luck[i, 0]:
-                        M["hp"][M["target"][i]] -= M["dmg"][i]
+                # AI-based decision for attack.
+                decision_map[M["team"][i]](
+                     # variables
+                     M["pos"], M["speed"], M["range"], M["acc"], M["dodge"],
+                     M["target"], M["dmg"], M["hp"], round_luck, dists, dir_vec, i
+                )
+
         t += 1
 
         if ret_frames:

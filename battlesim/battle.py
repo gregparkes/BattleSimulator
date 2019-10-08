@@ -8,11 +8,13 @@ Created on Fri Jul  5 17:39:42 2019
 
 import numpy as np
 import pandas as pd
+import warnings
 
 from . import utils
-from . import simulator_fast as simulator
+from .simulator_fast import simulate_battle as simulate
 from . import target
 from . import simplot
+from . import ai
 from .distributions import dist, Distribution, get_options
 from . import unit_quant
 
@@ -26,6 +28,25 @@ class Battle(object):
         Load -> Create -> Simulate -> Draw
     flow.
     """
+
+    ####################### HIDDEN FUNCTIONS ##############################
+
+    def _plot_simulation(self, func, cols):
+        if self.sim_ is None:
+            raise AttributeError("No simulation has occured, no presense of battle.sim_ object.")
+        labels = self.allegiances_.to_dict()
+        if len(cols) <= 0:
+            cols = utils.slice_loop(simplot._loop_colors(), len(self.allegiances_))
+
+        # quantify size by value
+        qscore = unit_quant.rank_score(self.db_).reset_index(drop=True).to_dict()
+
+        # call plotting function - with
+        Q = func(self.sim_, labels, cols, qscore)
+        return Q
+
+
+    ###################### INIT FUNCTION #####################################
 
     def __init__(self, dbfilepath):
         """
@@ -85,6 +106,8 @@ class Battle(object):
                                 .set_index("allegiance_int")
                                 .drop_duplicates().squeeze())
 
+        # assign a 'distribution' name
+        self.dname_ = []
 
         # set initial values.
         for i, ((u, n), (start, end), team) in enumerate(zip(self.army_set_, segments, self.teams_)):
@@ -98,12 +121,15 @@ class Battle(object):
             self.M_["acc"][start:end] = self.db_.loc[u,"Accuracy"]/100.
             self.M_["dmg"][start:end] = self.db_.loc[u,"Damage"]
             # default position: uniform
-            D = Distribution('uniform')
+            D = Distribution('normal', loc=i*2., scale=1.)
+            self.dname_.append('normal')
             self.M_["pos"][start:end] = D.sample(n)
 
-        # initialise AIs as random.
-        self.set_initial_ai(["random"]*self.n_armies_)
-        self.set_rolling_ai(["random"]*self.n_armies_)
+        # initialise AIs as nearest.
+        self.set_initial_ai("nearest")
+        self.set_rolling_ai("nearest")
+        # main AI options
+        self.set_ai_decision("aggressive")
 
         return self
 
@@ -143,35 +169,43 @@ class Battle(object):
         if self.M_ is None:
             raise AttributeError("create_army() has not been called, no positions to allocate")
 
+        self.dname_ = []
+
         segments = utils.get_segments(self.army_set_)
         if isinstance(distributions, str):
             if distributions in get_options()["names"]:
                 # create a distribution object.
                 D = Distribution(distributions)
                 for (u, n), (start, end) in zip(self.army_set_, segments):
+                    self.dname_.append(D.dist_)
                     self.M_["pos"][start:end] = D.sample(n)
             else:
                 raise ValueError("distribution '{}' not found in bsm.Distribution.".format(distributions))
         elif isinstance(distributions, Distribution):
             for (u, n), (start, end) in zip(self.army_set_, segments):
+                self.dname_.append(distributions.dist_)
                 self.M_["pos"][start:end] = distributions.sample(n)
         elif isinstance(distributions, dict):
             for (u, n), (start, end) in zip(self.army_set_, segments):
                 D = dist(**distributions)
+                self.dname_.append(D.dist_)
                 self.M_["pos"][start:end] = D.sample(n)
         elif isinstance(distributions, (list, tuple)):
             for (u, n), (start, end), d in zip(self.army_set_, segments, distributions):
                 if isinstance(d, Distribution):
+                    self.dname_.append(d.dist_)
                     self.M_["pos"][start:end] = d.sample(n)
                 elif isinstance(d, dict):
                     # unpack keywords into the 'dist' function of Distribution
                     D = dist(**d)
+                    self.dname_.append(D.dist_)
                     self.M_["pos"][start:end] = D.sample(n)
                 elif isinstance(d, str):
                     # each is a string distribution
                     if d in get_options()["names"]:
                         # create a distribution object.
                         D = Distribution(d)
+                        self.dname_.append(D.dist_)
                         self.M_["pos"][start:end] = D.sample(n)
                     else:
                         raise ValueError("distribution '{}' not found in bsm.Distribution.".format(d))
@@ -182,6 +216,7 @@ class Battle(object):
         return self
 
 
+    @utils.deprecated
     def set_position(self, positions):
         """
         Set locations to each 'army set' using direct positional coordinates in a numpy.array_like object.
@@ -195,6 +230,8 @@ class Battle(object):
         -------
         self
         """
+        warnings.warn("set_position will be removed in version 0.4.0", FutureWarning)
+
         if self.M_ is None:
             raise AttributeError("create_army() has not been called, no positions to allocate to")
         if not isinstance(positions, np.ndarray):
@@ -218,7 +255,7 @@ class Battle(object):
 
         Parameters
         --------
-        func_names : list of str
+        func_names : str or list of str
             The AI function to choose for initial targets for each army set. Can choose from:
                 ['random', 'pack', 'nearest']
 
@@ -226,7 +263,11 @@ class Battle(object):
         -------
         self
         """
-        if isinstance(func_names, (list, tuple)) and (len(func_names) == self.n_armies_):
+        if isinstance(func_names, str):
+            # set the string for all.
+            func_names = [func_names] * self.n_armies_
+            self.init_ai_ = dict(zip(range(self.n_armies_), func_names))
+        elif isinstance(func_names, (list, tuple)) and (len(func_names) == self.n_armies_):
             self.init_ai_ = dict(zip(range(self.n_armies_), func_names))
         else:
             raise AttributeError("ai_funcs is wrong type or length.")
@@ -261,7 +302,7 @@ class Battle(object):
 
         Parameters
         --------
-        func_names : list of str
+        func_names : str or list of str
             The AI function to choose for targets when their target dies
             for each army set. Can choose from: ['random', 'pack', 'nearest']
 
@@ -269,24 +310,59 @@ class Battle(object):
         -------
         self
         """
-        if isinstance(func_names, (list, tuple)) and (len(func_names) == self.n_armies_):
-            self.init_ai_ = dict(zip(range(self.n_armies_), func_names))
-        else:
-            raise AttributeError("ai_funcs is wrong type or length.")
+        if isinstance(func_names, str):
+            func_names = [func_names]*self.n_armies_
+            self.rolling_ai_ = dict(zip(range(self.n_armies_), func_names))
+        elif isinstance(func_names, (list, tuple)):
+            self.rolling_ai_ = dict(zip(range(self.n_armies_), func_names))
 
         if self.M_ is None:
             raise TypeError("'M' must be initialised.")
         utils.check_in_list(target.get_init_function_names(), func_names)
         utils.check_list_type(func_names, str)
 
-        self.rolling_ai_ = dict(zip(range(self.n_armies_), func_names))
         # map these strings to actual functions, ready for simulate.
         mappp = target.get_map_functions()
-        self._mapped_ai = dict(zip(range(self.n_armies_), [mappp[self.rolling_ai_[f]] for f in self.rolling_ai_]))
+        self._rolling_map = dict(zip(range(self.n_armies_), [mappp[self.rolling_ai_[f]] for f in self.rolling_ai_]))
         return self
 
 
-    @utils.deprecated
+    def set_ai_decision(self, decision):
+        """
+        Sets the over-arching AI choices for each 'army group'. By default they
+        choose an 'aggressive' stance.
+
+        WARNING: This function CAN override the choices made for the 'initial'
+        and 'rolling' AI decisions, based on it's functionality. This function
+        is therefore superior to those options.
+
+        Parameters
+        --------
+        decision : str or list of str
+            If str, applies that option to all army groups. Choose from
+            [aggressive, hit_and_run]
+
+        Returns
+        -------
+        self
+        """
+        if isinstance(decision, str):
+            decision = [decision] * self.n_armies_
+        if isinstance(decision, (list, tuple)):
+            utils.check_in_list(ai.get_function_names(), decision)
+            utils.check_list_type(decision, str)
+            if self.M_ is None:
+                raise TypeError("'M' must be initialised.")
+            self.decision_ai_ = dict(zip(range(self.n_armies_), decision))
+            mappp = ai.get_function_map()
+            self._decision_map = dict(zip(range(self.n_armies_),
+                                          [mappp[self.decision_ai_[f]] for f in self.decision_ai_]))
+
+        else:
+            raise TypeError("'ai' must be [str, list, tuple]")
+
+
+    @utils.to_remove
     def apply_position_uniform(self, pos_set):
         """
         Assigns positions given as (low, high) for uniform locations for each
@@ -300,7 +376,7 @@ class Battle(object):
         return self
 
 
-    @utils.deprecated
+    @utils.to_remove
     def apply_position_gaussian(self, pos_set):
         """
         Assign positions given as (mean, var) for gaussian locations for each
@@ -326,7 +402,11 @@ class Battle(object):
             raise AttributeError("No army sets are initialised, call create_army() before")
         else:
             # we cache a copy of the sim as well for convenience
-            self.sim_ = simulator.simulate_battle(np.copy(self.M_), self._mapped_ai, **kwargs)
+            self.sim_ = simulate(np.copy(self.M_),
+                                 self._rolling_map,
+                                 self._decision_map,
+                                 ret_frames=True,
+                                 **kwargs)
             return self.sim_
 
 
@@ -356,13 +436,17 @@ class Battle(object):
         else:
             Z = np.zeros((k,2), dtype=np.int64)
             for i in range(k):
-                team_counts = simulator.simulate_battle(np.copy(self.M_), self._mapped_ai,
-                                                  ret_frames=False, **kwargs)
+                team_counts = simulate(np.copy(self.M_),
+                                       self._rolling_map,
+                                       self._decision_map,
+                                       ret_frames=False,
+                                       **kwargs)
                 Z[i, :] = team_counts
             return pd.DataFrame(Z, columns=self.allegiances_.values)
 
 
     """ ------------ CONVENIENCE PLOTTING FUNCTIONS ---------------------- """
+
 
     def sim_jupyter(self,
                     func=simplot.quiver_fight,
@@ -390,17 +474,8 @@ class Battle(object):
         s : str/object
             HTML code to feed into HTML(s)
         """
-        if self.sim_ is None:
-            raise AttributeError("No simulation has occured, no presense of battle.sim_ object.")
-        labels = self.allegiances_.to_dict()
-        if len(cols) <= 0:
-            cols = utils.slice_loop(simplot._loop_colors(), len(self.allegiances_))
-
-        # quantify size by value
-        qscore = unit_quant.rank_score(self.db_).reset_index(drop=True).to_dict()
-
         # call plotting function - with
-        Q = func(self.sim_, labels, cols, qscore)
+        Q = self._plot_simulation(func, cols)
 
         if create_html:
             return Q.to_jshtml()
@@ -437,18 +512,8 @@ class Battle(object):
         if not filename.endswith(".gif"):
             filename.append(".gif")
 
-        if self.sim_ is None:
-            raise ValueError("No simulation has occured, no presense of battle.sim_ object.")
-
-        labels = self.allegiances_.to_dict()
-        if len(cols) <= 0:
-            cols = utils.slice_loop(simplot._loop_colors(), len(self.allegiances_))
-
-        # quantify size by value
-        qscore = unit_quant.rank_score(self.db_).reset_index(drop=True).to_dict()
-
-        # call function
-        Q = func(self.sim_, labels, cols, qscore)
+        # call simulation
+        Q = self._plot_simulation(func, cols)
 
         #save
         Q.save(filename,writer=writer)
@@ -464,8 +529,10 @@ class Battle(object):
         d["unit"] = [name for name, _ in self.army_set_]
         d["allegiance"] = [self.db_.loc[u, "Allegiance"] for u,_ in self.army_set_]
         d["n"] = [n for _, n in self.army_set_]
-        d["init_ai"] = [a for a in self.init_ai_.values()]
-        d["rolling_ai"] = [a for a in self.rolling_ai_.values()]
+        d["position"] = self.dname_
+        d["init_ai"] = list(self.init_ai_.values())
+        d["rolling_ai"] = list(self.rolling_ai_.values())
+        d["decision_ai"] = list(self.decision_ai_.values())
         return pd.DataFrame(d)
 
 

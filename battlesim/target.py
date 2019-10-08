@@ -41,15 +41,14 @@ from . import utils
 def get_init_function_names():
     return ["random", "nearest", "weakest", "strongest", "close_weak"]
 
-
-__all__ = get_init_function_names()
-
-
 def get_init_functions():
     return [random, nearest, weakest, strongest, close_weak]
 
 def get_map_functions():
     return dict(zip(get_init_function_names(), get_init_functions()))
+
+
+__all__ = get_init_function_names()
 
 
 @jit(nopython=True)

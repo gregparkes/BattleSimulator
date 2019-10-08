@@ -144,6 +144,21 @@ def is_twotuple(L, type1, type2):
     return False
 
 
+def to_remove(func):
+    """
+    This decorator marks functions to be removed in a future version.
+    """
+    @functools.wraps(func)
+    def new_func(*args, **kwargs):
+        warnings.simplefilter('always', FutureWarning)  # turn off filter
+        warnings.warn("Call to deprecated function {} will be removed in a future version.".format(func.__name__),
+                      category=FutureWarning,
+                      stacklevel=2)
+        warnings.simplefilter('default', FutureWarning)  # reset filter
+        return func(*args, **kwargs)
+    return new_func
+
+
 def deprecated(func):
     """This is a decorator which can be used to mark functions
     as deprecated. It will result in a warning being emitted

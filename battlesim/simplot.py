@@ -114,7 +114,7 @@ def quiver_fight(Frames,
     # configure legend, extras.
     # design custom legend
     custom_lines = [Line2D([0], [0], color=allegiance_color[a], lw=4) for a in allegiances]
-    ax.legend(custom_lines, [allegiance_label[a] for a in allegiances])
+    ax.legend(custom_lines, [allegiance_label[a] for a in allegiances], loc="upper right")
     fig.tight_layout()
     plt.close()
 
@@ -123,11 +123,8 @@ def quiver_fight(Frames,
     def init():
         for j, (a, un) in enumerate(combs):
             new_alive = Frames.query("(allegiance==@a) & (army==@un) & (frame==0) & alive")
-            new_dead = Frames.query("(frame == 0) & (allegiance == @a) & (not alive) & (army==@un)")
             if len(new_alive) > 0:
                 qalive[j].set_UVC(new_alive["dir_x"], new_alive["dir_y"])
-            if len(new_dead) > 0:
-                dead[j].set_data(new_dead["x"], new_dead["y"])
 
         return (*qalive, *dead)
 
