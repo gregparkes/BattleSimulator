@@ -271,6 +271,10 @@ def max_norm(x):
     return x/np.max(x)
 
 
+def sum_norm(x):
+    return x/np.sum(x)
+
+
 def io_table_descriptions():
     return [
         "The name of the unit. Format string",
