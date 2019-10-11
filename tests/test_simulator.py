@@ -7,8 +7,6 @@ Created on Mon Sep 30 16:24:02 2019
 """
 
 import sys
-import pandas as pd
-import numpy as np
 import pytest
 
 sys.path.insert(0,"../")
@@ -27,7 +25,9 @@ def test_simulate_battle():
     b = some_setup()
     # call with wrong types
     with pytest.raises(TypeError):
-        bsm.simulator_fast.simulate_battle("hello", b._mapped_ai, max_step=100, acc_penalty=20.)
+        bsm.simulator_fast.simulate_battle("hello", b.bounds_,
+                                           b._rolling_map, b._decision_map, max_step=100)
 
     # call simulate battle with correct args
-    F = bsm.simulator_fast.simulate_battle(b.M_, b._mapped_ai, max_step=100, acc_penalty=20.)
+    F = bsm.simulator_fast.simulate_battle(b.M_, b.bounds_,
+                                           b._rolling_map, b._decision_map, max_step=100)

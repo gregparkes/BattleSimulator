@@ -33,7 +33,7 @@ def get_options():
 
 def dist(**kws):
     """
-    Creates a distribution using keywords.
+    Defines a distribution using keywords.
 
     Parameters
     -------
@@ -98,6 +98,15 @@ def dist(**kws):
         else:
             raise ValueError("keyword '{}' not found in {}".format(keyword, dist_keys+dist_args))
 
+    # search to fill any missing gaps with default parameters
+    I = get_options()["names"].index(dist_names[0])
+    must_params = get_options()["acc_params"][I]
+    for p in must_params:
+        if p not in d_xk:
+            d_xk[p] = get_options()["def_params"][I][p]
+        if p not in d_yk:
+            d_yk[p] = get_options()["def_params"][I][p]
+
     # assign d_k to d.x_param_ - these throw errors if incorrect format
     d.x_param_ = d_xk
     d.y_param_ = d_yk
@@ -128,19 +137,78 @@ class Distribution(object):
         # extract option settings
         self._options = get_options()
         self._option_i = self._options["names"].index(self.dist_)
-
         # select accepted parameters for dist
         self._accepted_params = self._options["acc_params"][self._option_i]
         # select distribution func from scipy.stats
         self._dist_func = self._options["funcs"][self._option_i]
 
-        if len(parameters) > 0:
-            # check that parameters are actually found in the parameter list
-            self._check_parameters(parameters)
-            self.x_param_ = self.y_param_ = parameters
+        parameters["name"]=self.dist_
+        self._from_dict(**parameters)
+
+
+    def _from_dict(self, **kws):
+        # the name of the distribution
+        dist_keys = ["name", "id", "dist", "distribution"]
+        # arguments accepted
+        dist_args = ["mean","var","loc","scale","sd","std","a","b","df"]
+        dist_map = dict(zip(dist_args, ["loc","scale","loc","scale","scale","scale","a","b","df"]))
+
+        # set the distribution first!
+        dist_names = [a for k, a in kws.items() if k in dist_keys]
+        if len(dist_names) == 0:
+            self.dist_ = "normal"
         else:
-            # default parameters
-            self.x_param_ = self.y_param_ = get_options()["def_params"][self._option_i]
+            self.dist_ = dist_names[0]
+
+        d_xk, d_yk = {}, {}
+
+        # iterate over them all
+        for keyword, argument in kws.items():
+            dim = "none"
+            # get x_ y_ _x _y dims
+            if keyword.startswith("x_"):
+                keyword = keyword[2:]
+                dim = "x"
+            elif keyword.startswith("y_"):
+                keyword = keyword[2:]
+                dim = "y"
+            elif keyword.endswith("_x"):
+                keyword = keyword[:-2]
+                dim = "x"
+            elif keyword.endswith("_y"):
+                keyword = keyword[:-2]
+                dim = "y"
+
+            if keyword in dist_args:
+                # test argument
+                if not isinstance(argument, (float, int, np.int, np.float, np.int64, np.float64)):
+                    raise TypeError("argument '{}' must be of type [float, int] for distribution parameter".format(argument))
+
+                k_m = dist_map[keyword]
+                if dim == "x":
+                    d_xk[k_m] = argument
+                elif dim == "y":
+                    d_yk[k_m] = argument
+                else:
+                    d_xk[k_m] = argument
+                    d_yk[k_m] = argument
+            elif keyword in dist_keys:
+                continue
+            else:
+                raise ValueError("keyword '{}' not found in {}".format(keyword, dist_keys+dist_args))
+
+        # search to fill any missing gaps with default parameters
+        must_params = self._options["acc_params"][self._option_i]
+        for p in must_params:
+            if p not in d_xk:
+                d_xk[p] = self._options["def_params"][self._option_i][p]
+            if p not in d_yk:
+                d_yk[p] = self._options["def_params"][self._option_i][p]
+
+        # assign d_k to d.x_param_ - these throw errors if incorrect format
+        self.x_param_ = d_xk
+        self.y_param_ = d_yk
+
 
     def _get_x_param(self):
         return self._x_param
@@ -189,12 +257,16 @@ class Distribution(object):
             if not isinstance(v, (float, np.float, np.float64, int, np.int, np.int64)):
                 raise TypeError("parameter item must be of type [int, float]")
 
+    # extract mean, sd from x_param_, y_param_
+    def _get_mean(self):
+        return np.asarray([self.x_param_["loc"], self.y_param_["loc"]])
+
 
     scipy_dists_ = property(_get_dist_names, doc="list of accepted distributions")
     dist_ = property(_get_dist, _set_dist, doc="the selected distribution to use")
     x_param_ = property(_get_x_param, _set_x_param, doc="x-parameters directly passed to scipy.stats.<distribution>")
     y_param_ = property(_get_y_param, _set_y_param, doc="y-parameters directly passed to scipy.stats.<distribution>")
-
+    mean_ = property(_get_mean, "Means of the distribution")
 
     def setx(self, **x):
         """

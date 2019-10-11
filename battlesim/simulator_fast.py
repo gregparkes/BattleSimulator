@@ -9,6 +9,7 @@ This class handles the primary simulator functions given some data.
 """
 import pandas as pd
 import numpy as np
+from numba import jit
 
 from . import utils
 
@@ -43,14 +44,27 @@ def _convert_to_pandas(frames):
     # use frame as index to reduce memory.
     DF = pd.concat([pd.DataFrame({
         "army": frames["utype"][s],
-        "allegiance": frames["team"][s], "alive": frames["hp"][s] > 0,
-        "x": frames["pos"][s][:,0], "y": frames["pos"][s][:,1], "dir_x": frames["dpos"][s][:,0],
+        "allegiance": frames["team"][s],
+        "alive": frames["hp"][s] > 0,
+        "x": frames["pos"][s][:,0],
+        "y": frames["pos"][s][:,1],
+        "dir_x": frames["dpos"][s][:,0],
         "dir_y": frames["dpos"][s][:,1]
     }, index=frames["frame"][s]) for s in range(steps)])
     return DF
 
 
+@jit(nopython=True)
+def boundary_check(bxmin, bxmax, bymin, bymax, pos):
+    """performs boundary checks on our Mpos movement inplace"""
+    pos[pos[:, 0] <= bxmin, 0] = bxmin
+    pos[pos[:, 0] >= bxmax, 0] = bxmax
+    pos[pos[:, 1] <= bymin, 1] = bymin
+    pos[pos[:, 1] >= bymax, 1] = bymax
+
+
 def simulate_battle(M,
+                    terrain,
                     target_map,
                     decision_map,
                     max_step=100,
@@ -66,6 +80,8 @@ def simulate_battle(M,
     --------
     M : np.ndarray (units, )
         A heterogenous matrix containing data values for units
+    terrain : bsm.Terrain object
+        Terrain object containing the bounds.
     target_map : dict
         A dictionary mapping groups (k) to a bsm.target.* function (v)
     decision_map : dict
@@ -83,6 +99,16 @@ def simulate_battle(M,
     t = 0
     running = True
     teams = np.unique(M["team"])
+    # unpack bounds
+    xmin, xmax, ymin, ymax = terrain.bounds_
+
+    # flatten X, Y
+    X_m, Y_m = terrain.get_flat_grid()
+    # repeat X_m, Y_m for n units.
+    X_m = np.repeat(X_m, M.shape[0]).reshape(X_m.shape[0], M.shape[0])
+    Y_m = np.repeat(Y_m, M.shape[0]).reshape(Y_m.shape[0], M.shape[0])
+    # height
+    Z_m = terrain.Z_
 
     if ret_frames:
         frames = np.zeros(
@@ -98,6 +124,12 @@ def simulate_battle(M,
         # copy a frame
         if ret_frames:
             _copy_frame(frames, M, t)
+
+        # perform a boundary check.
+        boundary_check(xmin, xmax, ymin, ymax, M["pos"])
+        # list of indices per unit for which tile they are sitting on (X, Y)
+        X_t_ind = np.argmin(np.abs(M["pos"][:, 0] - X_m), axis=0)
+        Y_t_ind = np.argmin(np.abs(M["pos"][:, 1] - Y_m), axis=0)
 
         """# pre-compute the direction derivatives and magnitude/distance for each unit to it's target in batch."""
         dir_vec = M["pos"][M["target"]] - M["pos"]
@@ -132,7 +164,8 @@ def simulate_battle(M,
                 decision_map[M["group"][i]](
                      # variables
                      M["pos"], M["speed"], M["range"], M["acc"], M["dodge"],
-                     M["target"], M["dmg"], M["hp"], round_luck, dists, dir_vec, i
+                     M["target"], M["dmg"], M["hp"], round_luck, dists, dir_vec,
+                     Z_m, X_t_ind, Y_t_ind, i
                 )
 
         t += 1

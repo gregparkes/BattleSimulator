@@ -122,7 +122,6 @@ def timeit(method):
     return timed
 
 
-
 def is_twotuple(L, type1, type2):
     """
     Checks whether the object L is a 2-element tuple throughout.
@@ -142,6 +141,21 @@ def is_twotuple(L, type1, type2):
     else:
         raise TypeError("'L' must be of type 'list, tuple'")
     return False
+
+
+def is_ntuple(L, *types):
+    """
+    Checks whether the object L is an n-element tuple throughout.
+    """
+    if isinstance(L, (list, tuple)):
+        if len(L) == len(types):
+            for elem, t in zip(L, types):
+                if not isinstance(elem, t):
+                    raise TypeError("'L' element {} is not of type {}".format(elem, t))
+        else:
+            raise ValueError("L must be the same length as type list")
+    else:
+        raise TypeError("'L' must be of type [list, tuple]")
 
 
 def to_remove(func):
@@ -227,6 +241,11 @@ def check_groups_in_db(groups, db):
 
 def slice_loop(loopable, n):
     return list(it.islice(it.cycle(loopable), 0, n))
+
+
+@jit(nopython=True)
+def create_grid(xmin,xmax,ymin,ymax,res):
+    return np.mgrid[xmin:xmax:res, ymin:ymax:res]
 
 
 @jit(nopython=True)

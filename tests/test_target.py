@@ -7,11 +7,7 @@ Created on Mon Sep 30 15:44:31 2019
 """
 
 import sys
-import pandas as pd
 import numpy as np
-import pytest
-
-from scipy.stats import normaltest, kstest
 
 sys.path.insert(0,"../")
 import battlesim as bsm

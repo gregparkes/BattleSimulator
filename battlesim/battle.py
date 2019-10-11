@@ -8,14 +8,16 @@ Created on Fri Jul  5 17:39:42 2019
 
 import numpy as np
 import pandas as pd
+import warnings
 
 from . import utils
-from .simulator_fast import simulate_battle as sim_battle
 from . import target
 from . import simplot
 from . import ai
-from .distributions import dist, Distribution, get_options
 from . import unit_quant
+from .simulator_fast import simulate_battle as sim_battle
+from .distributions import dist, Distribution, get_options
+from .terrain import Terrain
 
 
 class Battle(object):
@@ -42,7 +44,7 @@ class Battle(object):
 
     def _is_instantiated(self):
         if self.M_ is None:
-            raise TypeError("'create_army' has not been called - there are no units.")
+            raise AttributeError("'create_army' has not been called - there are no units.")
 
 
     def _is_simulated(self):
@@ -54,13 +56,39 @@ class Battle(object):
         labels = self.allegiances_.to_dict()
         if len(cols) <= 0:
             cols = utils.slice_loop(simplot._loop_colors(), len(self.allegiances_))
-
         # quantify size by value
         qscore = unit_quant.rank_score(self.db_).reset_index(drop=True).to_dict()
 
-        # call plotting function - with
-        Q = func(self.sim_, labels, cols, qscore)
+        # call plotting function - with or without terrain
+        if self.T_ is not None:
+            Q = func(self.sim_, self.T_, labels, cols, qscore)
+        else:
+            Q = func(self.sim_, None, labels, cols, qscore)
         return Q
+
+
+    def _get_bounds_from_M(self):
+        xmin, xmax = self.M_["pos"][:, 0].min(), self.M_["pos"][:, 0].max()
+        ymin, ymax = self.M_["pos"][:, 1].min(), self.M_["pos"][:, 1].max()
+        return np.floor(xmin), np.ceil(xmax), np.floor(ymin), np.ceil(ymax)
+
+
+    def _check_bounds_to_M(self, bounds):
+        xmin, xmax, ymin, ymax = self._get_bounds_from_M()
+        if bounds[0] > xmin:
+            raise ValueError("xmin bounds value: {} > unit bound {}".format(bounds[0],xmin))
+        if bounds[1] < xmax:
+            raise ValueError("xmax bounds value: {} < unit bound {}".format(bounds[1],xmax))
+        if bounds[2] > ymin:
+            raise ValueError("ymin bounds value: {} > unit bound {}".format(bounds[2],ymin))
+        if bounds[3] < ymax:
+            raise ValueError("ymax bounds value: {} < unit bound {}".format(bounds[3],ymax))
+
+
+    def _sample_dist(self, D, segments):
+        for (u, n), (start, end) in zip(self.army_set_, segments):
+            self.D_.append(D)
+            self.M_["pos"][start:end] = D.sample(n)
 
 
     def _assign_initial_targets(self, init_ai):
@@ -90,17 +118,29 @@ class Battle(object):
 
     ###################### INIT FUNCTION #####################################
 
-    def __init__(self, dbfilepath):
+    def __init__(self, dbfilepath, bounds=(0, 10, 0, 10)):
         """
         Instantiate this object with a filepath leading to
+
+        Parameters
+        -------
+        dbfilepath : str
+            The filepath to the database object
+        bounds : tuple (4,)
+            The left, right, top and bottom bounds of the battle. Units cannot
+            leave these bounds.
         """
         assert isinstance(dbfilepath, str), "dbfilepath must be of type ('str')"
+        assert isinstance(bounds, tuple), "bounds must be a tuple"
+        assert len(bounds) == 4, "bounds must be of length 4"
         self.db_ = utils.import_and_check_unit_file(dbfilepath)
         self.M_ = None
         self.sim_ = None
         # convert db_ index to lower case.
         self.db_names_ = self.db_.index.tolist()
         self.db_.index = self.db_.index.str.lower()
+        # initialise a terrain
+        self.T_ = Terrain(bounds, res=.1, form=None)
 
 
     """---------------------- FUNCTIONS --------------------"""
@@ -143,8 +183,8 @@ class Battle(object):
                                 .set_index("allegiance_int")
                                 .drop_duplicates().squeeze())
 
-        # assign a 'distribution' name
-        self.dname_ = []
+        # capture distributions
+        self.D_ = []
 
         # set initial values.
         for i, ((u, n), (start, end), team) in enumerate(zip(self.army_set_, segments, self.teams_)):
@@ -159,14 +199,17 @@ class Battle(object):
             self.M_["dmg"][start:end] = self.db_.loc[u,"Damage"]
             # default position: uniform
             D = Distribution('normal', loc=i*2., scale=1.)
-            self.dname_.append('normal')
+            self.D_.append(D)
             self.M_["pos"][start:end] = D.sample(n)
+
+        # modify bounds
+        self.bounds_ = self._get_bounds_from_M()
 
         # initialise AIs as nearest.
         self.set_initial_ai("nearest")
         self.set_rolling_ai("nearest")
         # main AI options
-        self.set_ai_decision("aggressive")
+        self.set_decision_ai("aggressive")
 
         return self
 
@@ -205,62 +248,54 @@ class Battle(object):
         # if none for distributions, apply same as before.
         self._is_instantiated()
 
-        self.dname_ = []
+        self.D_ = []
 
         segments = utils.get_segments(self.army_set_)
         if isinstance(distributions, str):
-            if distributions in get_options()["names"]:
-                # create a distribution object.
-                D = Distribution(distributions)
-                for (u, n), (start, end) in zip(self.army_set_, segments):
-                    self.dname_.append(D.dist_)
-                    self.M_["pos"][start:end] = D.sample(n)
-            else:
-                raise ValueError("distribution '{}' not found in bsm.Distribution.".format(distributions))
+            self._sample_dist(Distribution(distributions), segments)
         elif isinstance(distributions, Distribution):
-            for (u, n), (start, end) in zip(self.army_set_, segments):
-                self.dname_.append(distributions.dist_)
-                self.M_["pos"][start:end] = distributions.sample(n)
+            self._sample_dist(distributions, segments)
         elif isinstance(distributions, dict):
-            for (u, n), (start, end) in zip(self.army_set_, segments):
-                D = dist(**distributions)
-                self.dname_.append(D.dist_)
-                self.M_["pos"][start:end] = D.sample(n)
+            self._sample_dist(dist(**distributions), segments)
         elif isinstance(distributions, (list, tuple)):
             for (u, n), (start, end), d in zip(self.army_set_, segments, distributions):
                 if isinstance(d, Distribution):
-                    self.dname_.append(d.dist_)
+                    self.D_.append(d)
                     self.M_["pos"][start:end] = d.sample(n)
                 elif isinstance(d, dict):
                     # unpack keywords into the 'dist' function of Distribution
                     D = dist(**d)
-                    self.dname_.append(D.dist_)
+                    self.D_.append(D)
                     self.M_["pos"][start:end] = D.sample(n)
                 elif isinstance(d, str):
                     # each is a string distribution
-                    if d in get_options()["names"]:
-                        # create a distribution object.
-                        D = Distribution(d)
-                        self.dname_.append(D.dist_)
-                        self.M_["pos"][start:end] = D.sample(n)
-                    else:
-                        raise ValueError("distribution '{}' not found in bsm.Distribution.".format(d))
+                    D = Distribution(d)
+                    self.D_.append(D)
+                    self.M_["pos"][start:end] = D.sample(n)
                 else:
                     raise TypeError("Each element of 'distributions' must be a bsm.Distribution or dict")
         else:
             raise TypeError("distributions must be of type [str, Distribution, list, tuple]")
+
+        # modify bounds
+        self.bounds_ = self._get_bounds_from_M()
         return self
 
 
-    @utils.to_remove
-    def set_position(self, positions):
+    def apply_terrain(self, t=None, res=.1, f=None):
         """
-        Set locations to each 'army set' using direct positional coordinates in a numpy.array_like object.
+        Applies a Z-plane to the map that the Battle is occuring on by creating
+        a bsm.Terrain object.
 
         Parameters
         -------
-        positions : list of array_like (n,2)
-            The x:y coordinates for each army group.
+        t : str
+            Choose from [None, 'grid', 'contour']. Default is None. Contour looks
+            the best. Decides how big/resolution to make the terrain based on the
+            initialized positions of units.
+        f : function
+            A function z = f(x, y) that performs a mathematical transformation, or None
+            for random hills.
 
         Returns
         -------
@@ -268,18 +303,15 @@ class Battle(object):
         """
         self._is_instantiated()
 
-        if not isinstance(positions, np.ndarray):
-            raise TypeError("positions must be of type [np.ndarray]")
-        if positions.shape[1] != 2:
-            raise ValueError("size of position dimensions must be 2, not {}".format(positions.shape[1]))
-        # check that size meets army_set
-        if positions.shape[0] != self.M_.shape[0]:
-            raise ValueError("size of position samples must be {}, not {}".format(self.M_.shape[0], positions.shape[0]))
-
-        segments = utils.get_segments(self.army_set_)
-        for (u, n), (start, end), location in zip(self.army_set_, segments, positions):
-            self.M_["pos"][start:end] = location.copy()
-        return self
+        if t in [None, "grid", "contour"]:
+            # add function to t
+            self.T_.res_ = res
+            self.T_.form_ = t
+            # apply
+            self.T_.generate(f=f)
+            return self
+        else:
+            raise ValueError("'t' must be [grid, contour, None]")
 
 
     def set_initial_ai(self, func_names):
@@ -301,14 +333,14 @@ class Battle(object):
 
         if isinstance(func_names, str):
             # set the string for all.
+            if func_names not in target.get_init_function_names():
+                raise ValueError("init_ai '{}' not found in {}".format(func_names, target.get_init_function_names()))
             self.init_ai_ = func_names = [func_names] * self.n_armies_
         elif isinstance(func_names, (list, tuple)) and (len(func_names) == self.n_armies_):
+            utils.check_in_list(target.get_init_function_names(), func_names)
             self.init_ai_ = func_names
         else:
             raise AttributeError("ai_funcs is wrong type or length.")
-
-        self._assign_initial_targets(func_names)
-
         return self
 
 
@@ -330,6 +362,8 @@ class Battle(object):
         self._is_instantiated()
 
         if isinstance(func_names, str):
+            if func_names not in target.get_init_function_names():
+                raise ValueError("init_ai '{}' not found in {}".format(func_names, target.get_init_function_names()))
             self.rolling_ai_ = func_names = [func_names]*self.n_armies_
         elif isinstance(func_names, (list, tuple)):
             self.rolling_ai_ = func_names
@@ -345,7 +379,7 @@ class Battle(object):
         return self
 
 
-    def set_ai_decision(self, decision):
+    def set_decision_ai(self, decision):
         """
         Sets the over-arching AI choices for each 'army group'. By default they
         choose an 'aggressive' stance.
@@ -380,35 +414,25 @@ class Battle(object):
 
         else:
             raise TypeError("'ai' must be [str, list, tuple]")
-
-
-    @utils.to_remove
-    def apply_position_uniform(self, pos_set):
-        """
-        Assigns positions given as (low, high) for uniform locations for each
-        army set.
-
-        Returns self
-        """
-        segments = utils.get_segments(self.army_set_)
-        for (u, n), (low, high), (start, end) in zip(self.army_set_, pos_set, segments):
-            self.M_["pos"][start:end] = low + np.random.rand(n, 2)*(high-low)
         return self
 
 
-    @utils.to_remove
-    def apply_position_gaussian(self, pos_set):
+    def set_bounds(self, bounds):
         """
-        Assign positions given as (mean, var) for gaussian locations for each
-        army set.
+        Sets the boundaries of the Battle. If not initialised, this is OK but may
+        produce errors down-the-line.
 
-        Returns self
+        Parameters
+        -------
+        bounds : tuple, list (4,)
+            the (left, right, top, bottom) dimensions of the simulation.
+
+        Returns
+        -------
+        self
         """
-        segments = utils.get_segments(self.army_set_)
-        for (u, n), (mean, var), (start, end) in zip(self.army_set_, pos_set, segments):
-            self.M_["pos"][start:end] = np.random.normal(mean, var, size=(n,2))
+        self.bounds_ = bounds
         return self
-
 
     """ ----------------------------- SIMULATION ----------------------------- """
 
@@ -419,11 +443,13 @@ class Battle(object):
         Returns pd.DataFrame of frames.
         """
         self._is_instantiated()
-
+        # set the flat terrain if it doesn't exist
+        self.T_.generate()
         # firstly assign initial AI targets.
         self._assign_initial_targets(self.init_ai_)
         # we cache a copy of the sim as well for convenience
         self.sim_ = sim_battle(np.copy(self.M_),
+                             self.T_,
                              self._rolling_map,
                              self._decision_map,
                              ret_frames=True,
@@ -456,11 +482,14 @@ class Battle(object):
             raise ValueError("'k' must be at least 1")
         else:
             Z = np.zeros((k,2), dtype=np.int64)
+            # generate new terrain
+            self.T_.generate()
             for i in range(k):
                 # firstly assign initial AI targets.
                 self._assign_initial_targets(self.init_ai_)
                 # run simulation
                 team_counts = sim_battle(np.copy(self.M_),
+                                       self.T_,
                                        self._rolling_map,
                                        self._decision_map,
                                        ret_frames=False,
@@ -554,12 +583,11 @@ class Battle(object):
         d["unit"] = [name for name, _ in self.army_set_]
         d["allegiance"] = [self.db_.loc[u, "Allegiance"] for u,_ in self.army_set_]
         d["n"] = [n for _, n in self.army_set_]
-        d["position"] = self.dname_
+        d["position"] = ["{} ({:0.1f}, {:0.1f})".format(dist.dist_, dist.mean_[0], dist.mean_[1]) for dist in self.D_]
         d["init_ai"] = self.init_ai_
         d["rolling_ai"] = self.rolling_ai_
         d["decision_ai"] = self.decision_ai_
         return pd.DataFrame(d)
-
 
     def _get_n_allegiance(self):
         self._is_instantiated()
@@ -568,7 +596,19 @@ class Battle(object):
         d["n"] = [n for _, n in self.army_set_]
         return pd.DataFrame(d).groupby("allegiance")["n"].sum()
 
+    def _get_bounds(self):
+        return self.T_.bounds_
 
+    def _set_bounds(self, b):
+        utils.is_ntuple(b, (float, int), (float, int), (float, int), (float, int))
+        if self.M_ is None:
+            warnings.warn("bounds {} set before units are initialised - some may be out-of-bounds".format(b), UserWarning)
+            self.T_.bounds_ = b
+        else:
+            self._check_bounds_to_M(b)
+            self.T_.bounds_ = b
+
+    bounds_ = property(_get_bounds, _set_bounds, doc="bounds of the battle")
     composition_ = property(_get_unit_composition, doc="The composition of the Battle")
     n_allegiance_ = property(_get_n_allegiance, doc="get the number of units for each side")
 

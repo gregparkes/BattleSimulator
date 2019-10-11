@@ -29,7 +29,11 @@ def test_battle_attributes():
     assert type(b.db_) == pd.DataFrame, "db_ must be a pandas.dataframe"
     assert isinstance(b.db_names_, (list, tuple)), "db_names_ must be a list, tuple"
     assert b.sim_ is None, "sim_ not set yet"
-    assert b.composition_ is None, "composition_ not set yet"
+
+    with pytest.raises(AttributeError):
+        b.composition_
+    with pytest.raises(AttributeError):
+        b.n_allegiance_
 
     return b
 
@@ -119,34 +123,6 @@ def test_apply_position():
         b.apply_position({"name":"gaussian", "loc":"hello", "scale":1.})
 
 
-def test_set_position():
-    # battle object requires input file
-    b = bsm.Battle("../datasets/starwars-clonewars.csv")
-
-    wrong_shape1 = np.random.normal(0, 1, size=(200,4))
-    wrong_shape2 = np.random.normal(0, 1, size=(300,2))
-    right_shape = np.random.normal(0, 1, size=(200,2))
-
-    # first, attempt to call without create_army
-    with pytest.raises(AttributeError):
-        b.set_position(right_shape)
-
-    # created normally.
-    b.create_army([("B1 battledroid", 100), ("Clone Trooper", 100)])
-
-    # attempt to set wrong type
-    with pytest.raises(TypeError):
-        b.set_position("Hello")
-        b.set_position(1)
-    # ensure correct numpy array shape (n, 2)
-    with pytest.raises(ValueError):
-        b.set_position(wrong_shape1)
-    with pytest.raises(ValueError):
-        b.set_position(wrong_shape2)
-
-    b.set_position(right_shape)
-
-
 def test_set_initial_ai():
     # battle object requires input file
     b = bsm.Battle("../datasets/starwars-clonewars.csv")
@@ -161,7 +137,7 @@ def test_set_initial_ai():
     b.create_army([("B1 battledroid", 100), ("Clone Trooper", 100)])
 
     # call error
-    with pytest.raises(AttributeError):
+    with pytest.raises(ValueError):
         b.set_initial_ai("hello")
     with pytest.raises(ValueError):
         b.set_initial_ai(["nearest","hello"])
@@ -186,7 +162,7 @@ def test_set_rolling_ai():
     b.create_army([("B1 battledroid", 100), ("Clone Trooper", 100)])
 
     # call error
-    with pytest.raises(AttributeError):
+    with pytest.raises(ValueError):
         b.set_rolling_ai("hello")
     with pytest.raises(ValueError):
         b.set_rolling_ai(["nearest","hello"])

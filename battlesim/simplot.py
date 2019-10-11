@@ -12,8 +12,6 @@ import itertools as it
 
 from .simulator_fast import frame_columns
 from .utils import check_columns, slice_loop
-from . import background
-from . import unit_quant
 
 from matplotlib.lines import Line2D
 
@@ -27,6 +25,7 @@ def _loop_colors():
 
 
 def quiver_fight(Frames,
+                 terrain=None,
                  allegiance_label={},
                  allegiance_color={},
                  quant_size_map={}):
@@ -46,6 +45,8 @@ def quiver_fight(Frames,
     Frames : pd.DataFrame
         The dataframe with each frame step to animate
         Columns included must be: 'x', 'y', 'dir_x', 'dir_y', 'allegiance', 'frame' and 'alive'
+    terrain : bsm.Terrain object
+        A terrain object to generate and draw from.
     allegiance_label : dict
         maps allegiance in Frames["allegiance"] (k) to a label str (v)
     allegiance_color : dict
@@ -67,16 +68,18 @@ def quiver_fight(Frames,
     # create plot
     fig = plt.figure(figsize=(8,6))
     ax = fig.add_subplot(111)
-    xmin, xmax = Frames["x"].min() - 1., Frames["x"].max() + 1.
-    ymin, ymax = Frames["y"].min() - 1., Frames["y"].max() + 1.
+
+    xmin, xmax, ymin, ymax = terrain.bounds_
+    terrain.plot(ax, alpha=.2)
 
     # find bounds
-    ax.set_xlim(xmin, xmax)
-    ax.set_ylim(ymin, ymax)
+    ax.set_xlim(xmin-.5, xmax+.5)
+    ax.set_ylim(ymin-.5, ymax+.5)
 
     # hide axes labels
     ax.get_xaxis().set_visible(False)
     ax.get_yaxis().set_visible(False)
+
     # use the numerical allegiance.
     allegiances = Frames["allegiance"].unique()
     # create defaults if the dictionary size does not match the allegiance flags
@@ -86,11 +89,11 @@ def quiver_fight(Frames,
     if len(allegiance_color) != allegiances.shape[0]:
         allegiance_color = dict(zip(allegiances.tolist(),
                                     slice_loop(_loop_colors(), allegiances.shape[0])))
-    if len(quant_size_map) == 0:
-        raise ValueError("quant_size MUST be set")
-
     # unique units.
     Uunits = Frames["army"].unique()
+    if len(quant_size_map) == 0:
+        quant_size_map = {k: 1 for k in Uunits}
+
     combs = list(it.product(allegiances, Uunits))
 
     """
@@ -121,7 +124,6 @@ def quiver_fight(Frames,
 
     # an initialisation function = to plot at the beginning.
     def init():
-
         for j, (a, un) in enumerate(combs):
             new_alive = Frames.loc[0].query("(allegiance==@a) & (army==@un) & alive")
             if len(new_alive) > 0:
@@ -134,7 +136,7 @@ def quiver_fight(Frames,
     def animate(i):
         for j, (a, un) in enumerate(combs):
             new_alive = Frames.loc[i].query("(allegiance == @a) & (alive) & (army == @un)")
-            new_dead = Frames.loc[i].query("(allegiance == @a) & (not alive) & (army==@un)")
+            new_dead = Frames.loc[i].query("(allegiance == @a) & (not alive) & (army == @un)")
             if len(new_alive) > 0:
                 qalive[j].set_offsets(np.vstack((new_alive["x"], new_alive["y"])).T)
                 qalive[j].set_UVC(new_alive["dir_x"], new_alive["dir_y"])
