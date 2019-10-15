@@ -12,7 +12,6 @@ import pandas as pd
 import functools
 import warnings
 import time
-from numba import jit
 
 
 __all__ = []
@@ -221,10 +220,6 @@ def get_segments(army_set):
     return s
 
 
-def minmax(X):
-    return (X - np.min(X)) / (np.max(X) - np.min(X))
-
-
 def io_table_columns():
     return [
         "Name", "Allegiance", "HP", "Damage", "Accuracy",
@@ -241,48 +236,6 @@ def check_groups_in_db(groups, db):
 
 def slice_loop(loopable, n):
     return list(it.islice(it.cycle(loopable), 0, n))
-
-
-@jit(nopython=True)
-def create_grid(xmin,xmax,ymin,ymax,res):
-    return np.mgrid[xmin:xmax:res, ymin:ymax:res]
-
-
-@jit(nopython=True)
-def euclidean_distance(M):
-    """
-    Given matrix m, calculate the euclidean distance using the directional directive.
-
-    parameters
-    -------
-    M : np.ndarray (n, d)
-        The directional derivative (P - Q) in d-dimensions.
-
-    returns
-    -------
-    D : np.ndarray (n,)
-        the distance magnitudes
-    """
-    return np.sqrt(np.sum(np.square(M), axis=1))
-
-
-@jit(nopython=True)
-def direction_norm(M):
-    """
-    Given the matrix m of directional derivatives, calculate the direction norm.
-
-    parameters
-    ------
-    M : np.ndarray (n, d)
-        The directional derivative (P - Q) in d-dimensions.
-
-    returns
-    -------
-    D_n : np.ndarray (n,)
-        the distance magnitudes, normed
-    """
-    distance = euclidean_distance(M)
-    return (M.T/distance).T
 
 
 def max_norm(x):
@@ -307,6 +260,22 @@ def io_table_descriptions():
     ]
 
 
+def check_unit_file(df):
+    """ Works inplace; no return """
+    mappp = dict(zip(io_table_columns(), io_table_descriptions()))
+    for m in io_table_columns():
+        if m not in df.columns:
+            raise IOError("column '{}' not found in file and must be present. Description:::'{}'".format(m, mappp[m]))
+
+
+def preprocess_unit_file(df):
+    """ Works inplace; no return """
+    # assign index
+    df.set_index("Name", inplace=True)
+    # assign int allegiance
+    df["allegiance_int"] = pd.factorize(df["Allegiance"])[0]
+
+
 def import_and_check_unit_file(fpath):
     """
     Checks the quality of the unit-score datafile.
@@ -318,15 +287,9 @@ def import_and_check_unit_file(fpath):
         raise IOError("fpath: {} does not exist".format(fpath))
     # attempt to read in
     df = pd.read_csv(fpath)
-    cols = df.columns
-    mappp = dict(zip(io_table_columns(), io_table_descriptions()))
+    # check
+    check_unit_file(df)
+    # preprocess
+    preprocess_unit_file(df)
 
-    for m in io_table_columns():
-        if m not in cols:
-            raise IOError("column '{}' not found in file and must be present. Description:::'{}'".format(m, mappp[m]))
-
-    # assign index
-    df.set_index("Name", inplace=True)
-    # assign int allegiance
-    df["allegiance_int"] = pd.factorize(df["Allegiance"])[0]
     return df

@@ -9,9 +9,9 @@ This file determines different background 'terrains' to have for any given map.
 This can be fixed size or infinite if it follows some mathematical function.
 """
 import numpy as np
-from scipy import stats
+from scipy.stats import multivariate_normal
+from . import jitcode
 from . import utils
-
 
 def get_tile_size(dim, res):
     return int(np.abs(dim[0]-dim[1])//res), int(np.abs(dim[2]-dim[3])//res)
@@ -37,7 +37,7 @@ def _generate_random_gauss(pos, dim, res=1.):
     # construct covariance
     C = np.array([[D[0]*sx, D[1]*R], [D[1]*R, D[0]*sy]])
     # use scipy.stats
-    z = stats.multivariate_normal(m, C).pdf(pos)
+    z = multivariate_normal(m, C).pdf(pos)
     return z
 
 
@@ -130,7 +130,7 @@ class Terrain(object):
         # add probabilities
         Z = Z_cont.sum(axis=2)
         # scale between 0 and 1 and return
-        return utils.minmax(Z)
+        return jitcode.minmax(Z)
 
 
     def __repr__(self):
@@ -176,7 +176,7 @@ class Terrain(object):
         if f is None:
             self.Z_ = self._generate_random_terrain(n_random)
         elif callable(f):
-            self.Z_ = utils.minmax(f(*self.get_grid()))
+            self.Z_ = jitcode.minmax(f(*self.get_grid()))
         else:
             raise TypeError("'f' must be a function or None")
         return self

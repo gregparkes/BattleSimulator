@@ -1,6 +1,8 @@
-# `battlesim` 0.3.4: Modelling and animating simulated battles between units in Python.
+# battlesim: Modelling and animating simulated battles between units in Python.
 
 The aim of this side project is to become familiar with Python classes and with primitive forms of animation and simulating environments. We map units onto a 2D plane and run simple simulations that involve them moving towards an enemy unit and attacking it. Rounds finish when one team has completely wiped out the other side, or we have reached the maximum number of timesteps.
+
+**Current version: 0.3.5**
 
 ![Image not found](simulations/sim2.gif)
 
@@ -21,14 +23,43 @@ With the following for exporting the animation as a gif:
 
 * ffmpeg
 
-With the following for testing:
-
-* PyTest (5.1.2)
+### From PyPI
 
 If you have working versions of the dependencies, similarly install using `pip`:
 
 ```bash
 pip install battlesim
+```
+
+We recommend updating the dependencies yourself using conda rather than through pip because conda manages the dependencies better, but pip will do it for you. See the `environment.yml` file for dependencies.
+
+### From Cloning the GitHub Repository
+
+Alternatively if you are cloning this GitHub repository, use:
+
+```bash
+git clone https://github.com/gregparkes/BattleSimulator
+conda env create -f environment.yml
+conda activate bsm
+```
+
+Now within the `bsm` environment run your Jupyter notebook:
+
+```bash
+jupyter notebook
+```
+
+### Running Tests
+
+You will need the following for testing (soft requirement):
+
+* PyTest (5.1.2)
+
+Then perform the following within a console:
+
+```bash
+cd tests/
+pytest -v
 ```
 
 ## How to use: The Basics
@@ -103,6 +134,14 @@ If you're interested in seeing how each team fare over multiple runs (to elimina
 
 This is the beginning of creating an interface similar to Machine Learning, whereby the outcome can be a classification (team) or regression (number of units surviving) target, and the unit compositions, aspects of the engine etc., can be inputs.
 
+## New in 0.3.5
+
+There are a number of exciting changes in this current update, including:
+
+- Introduction of **Terrains**. This is a major expansion giving 3D pseudodepth to animated battles. Depth now influences movement speed of units, with terrain penalties applied (up to 50%) on higher hills.
+- Boundary checking for units
+- Many internal bug fixes
+- Provided `pip` support
 
 ## Teaching series
 
@@ -118,9 +157,9 @@ This is still in active development retracing the steps of the project. All lega
 
 ## Future plans
 
-* Developing height as a factor, using contours to impair movement speed and/or accuracy, range of fights. 
 * Include AI-based behavior that makes use of height (to occupy hills)
-* Include AI-based behavior that 'micros' or does hit-and-run against enemy units that are slower/less range.
+* Develop 'defensive' AI.
+* Build objects in the terrain.
 
 ***
 

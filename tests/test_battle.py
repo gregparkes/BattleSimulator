@@ -111,10 +111,9 @@ def test_apply_position():
     # we don't test bsm.Distribution objects here
     b.apply_position({"name":"gaussian", "loc": 0., "scale": 1.})
 
+    # ignore wrong keyword
+    b.apply_position({"n":"gaussian", "loc":0., "scale":1.})
     with pytest.raises(ValueError):
-        #wrong index
-        b.apply_position({"n":"gaussian", "loc":0., "scale":1.})
-    with pytest.raises(TypeError):
         b.apply_position({"name":10, "loc":0., "scale":1.})
     with pytest.raises(ValueError):
         b.apply_position({"name":str(10), "loc":0., "scale":1.})

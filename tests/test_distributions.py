@@ -19,8 +19,9 @@ def test_define_distribution():
     d = bsm.Distribution()
 
     # wrong type
-    with pytest.raises(TypeError):
+    with pytest.raises(ValueError):
         bsm.Distribution(1)
+    with pytest.raises(TypeError):
         bsm.Distribution([1, 2, 3, "gaussian"])
     # non-option
     with pytest.raises(ValueError):

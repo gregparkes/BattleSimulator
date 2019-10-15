@@ -9,9 +9,8 @@ This class handles the primary simulator functions given some data.
 """
 import pandas as pd
 import numpy as np
-from numba import jit
 
-from . import utils
+from . import jitcode
 
 ############################################################################
 
@@ -29,7 +28,7 @@ def _copy_frame(Frames, M, i):
     Frames["target"][i] = M["target"]
     Frames["hp"][i] = M["hp"]
     # create direction norm
-    dnorm = utils.direction_norm(M["pos"][M["target"]] - M["pos"])
+    dnorm = jitcode.direction_norm(M["pos"][M["target"]] - M["pos"])
     Frames["dpos"][i] = dnorm
     Frames["team"][i] = M["team"]
     Frames["utype"][i] = M["utype"]
@@ -52,15 +51,6 @@ def _convert_to_pandas(frames):
         "dir_y": frames["dpos"][s][:,1]
     }, index=frames["frame"][s]) for s in range(steps)])
     return DF
-
-
-@jit(nopython=True)
-def boundary_check(bxmin, bxmax, bymin, bymax, pos):
-    """performs boundary checks on our Mpos movement inplace"""
-    pos[pos[:, 0] <= bxmin, 0] = bxmin
-    pos[pos[:, 0] >= bxmax, 0] = bxmax
-    pos[pos[:, 1] <= bymin, 1] = bymin
-    pos[pos[:, 1] >= bymax, 1] = bymax
 
 
 def simulate_battle(M,
@@ -126,14 +116,14 @@ def simulate_battle(M,
             _copy_frame(frames, M, t)
 
         # perform a boundary check.
-        boundary_check(xmin, xmax, ymin, ymax, M["pos"])
+        jitcode.boundary_check(xmin, xmax, ymin, ymax, M["pos"])
         # list of indices per unit for which tile they are sitting on (X, Y)
         X_t_ind = np.argmin(np.abs(M["pos"][:, 0] - X_m), axis=0)
         Y_t_ind = np.argmin(np.abs(M["pos"][:, 1] - Y_m), axis=0)
 
         """# pre-compute the direction derivatives and magnitude/distance for each unit to it's target in batch."""
         dir_vec = M["pos"][M["target"]] - M["pos"]
-        dists = utils.euclidean_distance(dir_vec)
+        dists = jitcode.euclidean_distance(dir_vec)
         """precompute enemy and ally target listings"""
         enemy_targets = [np.argwhere((M["hp"]>0) & (M["team"]!=T)).flatten() for T in teams]
         ally_targets = [np.argwhere((M["hp"]>0) & (M["team"]==T)).flatten() for T in teams]

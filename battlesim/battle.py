@@ -15,8 +15,9 @@ from . import target
 from . import simplot
 from . import ai
 from . import unit_quant
+from . import defaults
 from .simulator_fast import simulate_battle as sim_battle
-from .distributions import dist, Distribution, get_options
+from .distributions import Distribution
 from .terrain import Terrain
 
 
@@ -98,42 +99,50 @@ class Battle(object):
         utils.check_in_list(target.get_init_function_names(), init_ai)
         utils.check_list_type(init_ai, str)
 
-        f_dict = target.get_map_functions()
+        f_dict = target.get_global_map_functions()
         segments = utils.get_segments(self.army_set_)
 
-        # create valid_targets set
-        valid_targets = [np.argwhere((self.M_["team"]!=T)).flatten() for T in np.unique(self.M_["team"])]
-        valid_allies = [np.argwhere((self.M_["team"]==T)).flatten() for T in np.unique(self.M_["team"])]
+        for group, (u, n), (start, end), func, team in zip(range(len(init_ai)), self.army_set_, segments, init_ai, self.teams_):
+            mod_func = "global_" + func
+            self.M_["target"][start:end] = f_dict[mod_func](
+                self.M_["pos"], self.M_["hp"], self.M_["team"], self.M_["group"], group
+            )
 
-        for (u, n), (start, end), func, team in zip(self.army_set_, segments, init_ai, self.teams_):
-            for i in range(start, end):
-                # AI template <pos>,<target>,<hp>,<enemies>,<allies>,<index>
-                self.M_["target"][i] = f_dict[func](self.M_["pos"],
-                       self.M_["target"],
-                       self.M_["hp"],
-                       valid_targets[team],
-                       valid_allies[team],
-                       i)
 
 
     ###################### INIT FUNCTION #####################################
 
-    def __init__(self, dbfilepath, bounds=(0, 10, 0, 10)):
+    def __init__(self, db=defaults.default_db(), bounds=(0, 10, 0, 10)):
         """
         Instantiate this object with a filepath leading to
 
         Parameters
         -------
-        dbfilepath : str
-            The filepath to the database object
+        db : str, dict or pandas.DataFrame
+            If str: Is filepath to the database object
+            If dict or pandas.dataFrame: represents actual data.
+            Must contain ["Name", "Allegiance", "HP", "Damage", "Accuracy", "Miss", "Movement Speed", "Range"] columns.
+            See bsm.defaults.default_db() for example.
         bounds : tuple (4,)
             The left, right, top and bottom bounds of the battle. Units cannot
             leave these bounds.
         """
-        assert isinstance(dbfilepath, str), "dbfilepath must be of type ('str')"
         assert isinstance(bounds, tuple), "bounds must be a tuple"
         assert len(bounds) == 4, "bounds must be of length 4"
-        self.db_ = utils.import_and_check_unit_file(dbfilepath)
+
+        if isinstance(db, str):
+            self.db_ = utils.import_and_check_unit_file(db)
+        elif isinstance(db, dict):
+            self.db_ = pd.DataFrame(db)
+            utils.check_unit_file(self.db_)
+            utils.preprocess_unit_file(self.db_)
+        elif isinstance(db, pd.DataFrame):
+            self.db_ = db.copy()
+            utils.check_unit_file(self.db_)
+            utils.preprocess_unit_file(self.db_)
+        else:
+            raise ValueError("'db' must be of type [str, dict, pd.DataFrame], not {}".format(type(db)))
+
         self.M_ = None
         self.sim_ = None
         # convert db_ index to lower case.
@@ -256,7 +265,7 @@ class Battle(object):
         elif isinstance(distributions, Distribution):
             self._sample_dist(distributions, segments)
         elif isinstance(distributions, dict):
-            self._sample_dist(dist(**distributions), segments)
+            self._sample_dist(Distribution(**distributions), segments)
         elif isinstance(distributions, (list, tuple)):
             for (u, n), (start, end), d in zip(self.army_set_, segments, distributions):
                 if isinstance(d, Distribution):
@@ -264,7 +273,7 @@ class Battle(object):
                     self.M_["pos"][start:end] = d.sample(n)
                 elif isinstance(d, dict):
                     # unpack keywords into the 'dist' function of Distribution
-                    D = dist(**d)
+                    D = Distribution(**d)
                     self.D_.append(D)
                     self.M_["pos"][start:end] = D.sample(n)
                 elif isinstance(d, str):
@@ -443,6 +452,10 @@ class Battle(object):
         Returns pd.DataFrame of frames.
         """
         self._is_instantiated()
+        # check for multiple teams
+        if np.unique(self.teams_).shape[0] <= 1:
+            warnings.warn("Simulation halted - There is only one team present.", UserWarning)
+            return self.sim_
         # set the flat terrain if it doesn't exist
         self.T_.generate()
         # firstly assign initial AI targets.
@@ -481,6 +494,11 @@ class Battle(object):
         if k < 1:
             raise ValueError("'k' must be at least 1")
         else:
+            # check for multiple teams
+            if np.unique(self.teams_).shape[0] <= 1:
+                warnings.warn("Simulation halted - There is only one team present.", UserWarning)
+                return self.sim_
+
             Z = np.zeros((k,2), dtype=np.int64)
             # generate new terrain
             self.T_.generate()

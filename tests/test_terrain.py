@@ -42,8 +42,8 @@ def test_terrain_attributes():
     T = bsm.Terrain()
 
     assert T.Z_ is None, "Z_ should be undefined at this stage"
-    assert isinstance(T.dim_, tuple), "dim_ should be a tuple"
-    assert len(T.dim_) == 4, "dim_ should be of length 4"
+    assert isinstance(T.bounds_, tuple), "dim_ should be a tuple"
+    assert len(T.bounds_) == 4, "dim_ should be of length 4"
     assert isinstance(T.res_, float), "resolution must be float"
     assert isinstance(T.form_, str), "form_ must be of type str"
     assert T.form_ in [None, "grid", "contour"], "form_ must be None, grid or contour"
