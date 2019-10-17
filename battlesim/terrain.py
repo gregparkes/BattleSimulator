@@ -97,7 +97,7 @@ class Terrain(object):
             raise AttributeError("xmax cannot be <= xmin")
         if dim[3] <= dim[2]:
             raise AttributeError("ymax cannot be <= ymin")
-        utils.is_ntuple(dim, (int, float), (int, float), (int, float), (int, float))
+        utils.is_ntuple(dim, *([(int, float, np.float, np.int, np.float32, np.int32)]*4))
         self._bounds = dim
 
     def _get_res(self):

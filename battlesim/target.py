@@ -16,8 +16,6 @@ passed to the functions.
     --------
     pos : np.ndarray (n, 2)
         The positions of all units
-    targets : np.ndarray (n,)
-        The target of every unit.
     hp : np.ndarray (n, )
         The HP of every unit.
     enemies : np.ndarray
@@ -39,17 +37,16 @@ from numba import jit
 from . import jitcode
 
 def get_init_function_names():
-    return ["random", "nearest", "weakest", "strongest", "close_weak"]
+    return ["random", "nearest", "close_weak"]
 
 def get_global_function_names():
     return ["global_" + n for n in get_init_function_names()]
 
 def get_init_functions():
-    return [random, nearest, weakest, strongest, close_weak]
+    return [random, nearest, close_weak]
 
 def get_global_functions():
-    return [global_random, global_nearest, global_weakest,
-            global_strongest, global_close_weak]
+    return [global_random, global_nearest, global_close_weak]
 
 def get_map_functions():
     return dict(zip(get_init_function_names(), get_init_functions()))
@@ -65,7 +62,7 @@ __all__ = get_init_function_names() + get_global_function_names()
 
 
 @jit(nopython=True)
-def random(pos, targets, hp, enemies, allies, i):
+def random(pos, hp, enemies, allies, i):
     """
     Given enemy candidates who are alive, draw one at random.
     """
@@ -77,7 +74,7 @@ def random(pos, targets, hp, enemies, allies, i):
 
 
 @jit(nopython=True)
-def nearest(pos, targets, hp, enemies, allies, i):
+def nearest(pos, hp, enemies, allies, i):
     """
     Given enemy candidates who are alive, determine which one is nearest.
     """
@@ -90,33 +87,7 @@ def nearest(pos, targets, hp, enemies, allies, i):
 
 
 @jit(nopython=True)
-def weakest(pos, targets, hp, enemies, allies, i):
-    """
-    Given enemy alive candidates, globally determine which one is weakest with
-    lowest hit points (and easiest to kill).
-    """
-
-    if enemies.shape[0] > 0:
-        return enemies[np.argmin(hp[enemies])]
-    else:
-        return -1
-
-
-@jit(nopython=True)
-def strongest(pos, targets, hp, enemies, allies, i):
-    """
-    Given enemy alive candidates, globally determine which one is the strongest
-    of the enemies and target them.
-
-    """
-    if enemies.shape[0] > 0:
-        return enemies[np.argmax(hp[enemies])]
-    else:
-        return -1
-
-
-@jit(nopython=True)
-def close_weak(pos, targets, hp, enemies, allies, i, wtc_ratio=0.7):
+def close_weak(pos, hp, enemies, allies, i, wtc_ratio=0.7):
     """
     Given enemy alive candidates, globally determine which one is the weakest
     and closest, using appropriate weighting for each option.
@@ -195,33 +166,6 @@ def global_nearest(pos, hp, team, group, group_i):
     id_is, = np.where(selector)
     # use distance matrix and ids to select sub groups to find argmin
     j = jitcode.matrix_argmin(D[id_is, :][:, id_not])
-    return j
-
-
-@jit(nopython=True)
-def global_weakest(pos, hp, team, group, group_i):
-    # define
-    selector = (group == group_i)
-    t = np.unique(team[selector])[0]
-    # get unit IDs that are not equal to this team for enemies.
-    id_not, = np.where(team != t)
-    id_is, = np.where(selector)
-
-    # find hp of id_not and select weakest.
-    j = np.repeat(np.argmin(hp[id_not]), selector.sum())
-    return j
-
-
-@jit(nopython=True)
-def global_strongest(pos, hp, team, group, group_i):
-    # define
-    selector = (group == group_i)
-    t = np.unique(team[selector])[0]
-    # get unit IDs that are not equal to this team for enemies.
-    id_not, = np.where(team != t)
-    id_is, = np.where(selector)
-
-    j = np.repeat(np.argmax(hp[id_not]), selector.sum())
     return j
 
 

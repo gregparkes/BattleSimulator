@@ -36,9 +36,9 @@ class Battle(object):
 
     def _dataset(self, n):
         return np.zeros((n), dtype=[
-            ("team",np.uint8,1),("utype",np.uint8,1),("pos",np.float64,2),("hp",np.float64,1),
-            ("range",np.float64,1),("speed",np.float64,1),("acc",np.float64,1),
-            ("dodge",np.float64,1),("dmg",np.float64,1),("target",np.int64,1),
+            ("team",np.uint8,1),("utype",np.uint8,1),("pos",np.float32,2),("hp",np.float32,1),
+            ("range",np.float32,1),("speed",np.float32,1),("acc",np.float32,1),
+            ("dodge",np.float32,1),("dmg",np.float32,1),("target",np.int32,1),
             ("group",np.uint8,1)
         ])
 
@@ -310,14 +310,13 @@ class Battle(object):
         -------
         self
         """
+        warnings.warn("argument 'f' is currently unused in apply_terrain(*args).", UserWarning)
         self._is_instantiated()
 
         if t in [None, "grid", "contour"]:
             # add function to t
             self.T_.res_ = res
             self.T_.form_ = t
-            # apply
-            self.T_.generate(f=f)
             return self
         else:
             raise ValueError("'t' must be [grid, contour, None]")
@@ -618,7 +617,6 @@ class Battle(object):
         return self.T_.bounds_
 
     def _set_bounds(self, b):
-        utils.is_ntuple(b, (float, int), (float, int), (float, int), (float, int))
         if self.M_ is None:
             warnings.warn("bounds {} set before units are initialised - some may be out-of-bounds".format(b), UserWarning)
             self.T_.bounds_ = b

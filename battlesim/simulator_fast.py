@@ -103,8 +103,8 @@ def simulate_battle(M,
     if ret_frames:
         frames = np.zeros(
                 (max_step+1, M.shape[0]),
-                dtype=[("frame", np.int64, 1), ("pos", np.float64, 2), ("target", np.int64, 1),
-                       ("hp", np.float64, 1), ("dpos", np.float64, 2), ("team", np.uint8, 1),
+                dtype=[("frame", np.int64, 1), ("pos", np.float32, 2), ("target", np.int32, 1),
+                       ("hp", np.float32, 1), ("dpos", np.float32, 2), ("team", np.uint8, 1),
                        ("utype", np.uint8, 1)
                 ]
         )
@@ -133,30 +133,16 @@ def simulate_battle(M,
         # iterate over units and check their life, target.
         for i in range(M.shape[0]):
             if M["hp"][i] > 0.:
-                # check whether the target is alive...
-                if M["hp"][M["target"][i]] <= 0:
-                    # assign new target
-                    if enemy_targets[M["team"][i]].shape[0] > 0:
-                        """# use ai_map to dictionary-map the group number to the appropriate AI function"""
-                        """ Arguments: positions, targets, hp, enemies, allies, index, [extras]"""
-                        M["target"][i] = target_map[M["group"][i]](
-                                M["pos"],
-                                M["target"],
-                                M["hp"],
-                                enemy_targets[M["team"][i]],
-                                ally_targets[M["team"][i]],
-                                i
-                        )
-                    else:
-                        running = False
-
+                dm = decision_map[M["group"][i]]
                 # AI-based decision for attack/defend.
-                decision_map[M["group"][i]](
+                running = (dm(
                      # variables
                      M["pos"], M["speed"], M["range"], M["acc"], M["dodge"],
                      M["target"], M["dmg"], M["hp"], round_luck, dists, dir_vec,
+                     M["team"], target_map[M["group"][i]],
+                     enemy_targets[M["team"][i]], ally_targets[M["team"][i]],
                      Z_m, X_t_ind, Y_t_ind, i
-                )
+                ))
 
         t += 1
 
