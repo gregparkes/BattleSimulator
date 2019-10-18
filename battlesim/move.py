@@ -31,6 +31,6 @@ def to_enemy(speed, dd, distances, Z, Z_xi, Z_yi, i):
     Returns adjustment, does not modify pos inplace.
 
     The update speed is calculated as:
-        <unit base speed> * (<unit directional derivative> / <magnitude/distance>) * <terrain modifier>
+        s_i * (dd_i / m_ij) * (1 - (Z_i / 2))
     """
     return (speed[i] * (dd[i] / distances[i])) * (1. - (Z[Z_xi[i], Z_yi[i]] / 2.))

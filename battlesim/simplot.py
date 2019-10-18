@@ -68,13 +68,8 @@ def quiver_fight(Frames,
     # create plot
     fig = plt.figure(figsize=(8,6))
     ax = fig.add_subplot(111)
-
-    xmin, xmax, ymin, ymax = terrain.bounds_
+    # plot the terrain underneath
     terrain.plot(ax, alpha=.2)
-
-    # find bounds
-    ax.set_xlim(xmin-.5, xmax+.5)
-    ax.set_ylim(ymin-.5, ymax+.5)
 
     # hide axes labels
     ax.get_xaxis().set_visible(False)
@@ -115,6 +110,10 @@ def quiver_fight(Frames,
         dead.append(team_dead)
 
     # configure legend, extras.
+    # set plot bounds
+    xmin, xmax, ymin, ymax = terrain.bounds_
+    ax.set_xlim(xmin-.5, xmax+.5)
+    ax.set_ylim(ymin-.5, ymax+.5)
     # design custom legend
     custom_lines = [Line2D([0], [0], color=allegiance_color[a], lw=4) for a in allegiances]
     ax.legend(custom_lines, [allegiance_label[a] for a in allegiances], loc="upper right")

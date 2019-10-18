@@ -34,10 +34,10 @@ def matrix_argmin(X):
 @jit(nopython=True)
 def boundary_check(bxmin, bxmax, bymin, bymax, pos):
     """performs boundary checks on our Mpos movement inplace"""
-    pos[pos[:, 0] <= bxmin, 0] = bxmin
-    pos[pos[:, 0] >= bxmax, 0] = bxmax
-    pos[pos[:, 1] <= bymin, 1] = bymin
-    pos[pos[:, 1] >= bymax, 1] = bymax
+    pos[pos[:, 0] < bxmin, 0] = bxmin
+    pos[pos[:, 0] > bxmax, 0] = bxmax
+    pos[pos[:, 1] < bymin, 1] = bymin
+    pos[pos[:, 1] > bymax, 1] = bymax
 
 
 @jit(nopython=True)
@@ -49,9 +49,9 @@ def euclidean_distance(M):
 
 
 @jit(nopython=True)
-def direction_norm(M):
-    distance = euclidean_distance(M)
-    return (M.T/distance).T
+def direction_norm(dd):
+    distance = euclidean_distance(dd)
+    return (dd.T/distance).T
 
 
 @jit(nopython=True)

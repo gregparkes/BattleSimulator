@@ -9,6 +9,7 @@ This file determines different background 'terrains' to have for any given map.
 This can be fixed size or infinite if it follows some mathematical function.
 """
 import numpy as np
+from matplotlib.pyplot import subplots
 from scipy.stats import multivariate_normal
 from . import jitcode
 from . import utils
@@ -182,16 +183,17 @@ class Terrain(object):
         return self
 
 
-    def plot(self, ax, **kwargs):
+    def plot(self, ax=None, **kwargs):
         # given an axes, plot the terrain using the parameters given.
         if self.Z_ is None:
             raise ValueError("Terrain not instantiated, call generate()")
+        if ax is None:
+            fig, ax = subplots(figsize=(8, 6))
 
         if self.form_ == "grid":
             xmin, xmax, ymin, ymax = self.bounds_
-            ax.imshow(self.Z_,
-                            aspect="auto", cmap="binary", **kwargs)
+            ax.imshow(self.Z_, aspect="auto", cmap="binary", extent=self.bounds_, **kwargs)
         elif self.form_ == "contour" or self.form_ == "random":
             X, Y = self.get_grid()
-            ax.contourf(X, Y, self.Z_, cmap="binary", **kwargs)
+            ax.contourf(X, Y, self.Z_, cmap="binary", extent=self.bounds_, **kwargs)
         return
