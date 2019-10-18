@@ -32,7 +32,7 @@ passed to the functions.
 
 """
 import numpy as np
-from numba import jit
+from numba import njit
 
 from . import jitcode
 
@@ -61,7 +61,7 @@ __all__ = get_init_function_names() + get_global_function_names()
 ############## AI FUNCTIONS ##############################
 
 
-@jit(nopython=True)
+@njit
 def random(pos, hp, enemies, allies, i):
     """
     Given enemy candidates who are alive, draw one at random.
@@ -73,7 +73,7 @@ def random(pos, hp, enemies, allies, i):
         return -1
 
 
-@jit(nopython=True)
+@njit
 def nearest(pos, hp, enemies, allies, i):
     """
     Given enemy candidates who are alive, determine which one is nearest.
@@ -86,7 +86,7 @@ def nearest(pos, hp, enemies, allies, i):
         return -1
 
 
-@jit(nopython=True)
+@njit
 def close_weak(pos, hp, enemies, allies, i, wtc_ratio=0.7):
     """
     Given enemy alive candidates, globally determine which one is the weakest
@@ -141,7 +141,7 @@ all units need a new target.
 """
 
 
-@jit(nopython=True)
+@njit
 def global_random(pos, hp, team, group, group_i):
     # define
     selector = (group == group_i)
@@ -153,7 +153,7 @@ def global_random(pos, hp, team, group, group_i):
     return j
 
 
-@jit(nopython=True)
+@njit
 def global_nearest(pos, hp, team, group, group_i):
     # define
     selector = (group == group_i)
@@ -169,6 +169,7 @@ def global_nearest(pos, hp, team, group, group_i):
     return j
 
 
+@njit
 def global_close_weak(pos, hp, team, group, group_i, wtc_ratio=0.7):
     # define
     selector = (group == group_i)

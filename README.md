@@ -4,7 +4,7 @@ The aim of this side project is to become familiar with Python classes and with 
 
 **Current version: 0.3.5**
 
-![Image not found](simulations/sim2.gif)
+![Image not found](simulations/main.gif)
 
 The code for the primary engine is found in `battlesim/`, and implementations/examples are found in the Jupyter notebooks. Animations should display properly in these notebooks.
 
@@ -12,20 +12,24 @@ The code for the primary engine is found in `battlesim/`, and implementations/ex
 
 `battlesim` requires the following dependencies:
 
-* Python (>=3.5)
-* NumPy (>=1.11.0)
-* SciPy (>=1.3)
-* Pandas (>=0.25.1)
-* Matplotlib (>=3.1.1)
-* Numba (>=0.45)
+* python (>=3.5)
+* numpy (>=1.11.0)
+* scipy (>=1.3)
+* pandas (>=0.25.1)
+* matplotlib (>=3.1.1)
+* numba (>=0.45)
 
 With the following for exporting the animation as a gif:
 
-* ffmpeg
+* ffmpeg (>=4.2)
+
+The following packages are not required but significantly improve the usage of this package:
+
+* jupyter (1.0.0)
 
 ### From PyPI
 
-If you have working versions of the dependencies, similarly install using `pip`:
+If you have working versions of the dependencies, similarly install using `pip` (current version 0.3.5):
 
 ```bash
 pip install battlesim
@@ -116,11 +120,11 @@ By default, the simulation function will make a record of important parameters a
 >>> battle.sim_jupyter()
 ```
 
-![Image not found](simulations/sim1.gif)
+![Image not found](simulations/sim2.gif)
 
 Here `sim_jupyter` treats each unit object as a quiver arrow in 2-d space (position and direction facing it's enemy). The targets should move towards each other and attempt to kill each other. Dead units are represented as crosses **'x'** on the map. 
 
-![Image not found](images/quiver2.svg)
+![Image not found](images/quiver1.svg)
 
 The rest is for you to explore, tweak and enjoy watching arrows move towards each other and kill each other.
 

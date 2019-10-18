@@ -6,19 +6,29 @@ Created on Tue Oct  8 11:12:15 2019
 @author: gparkes
 """
 
-from numba import jit
+from numba import njit
 
 
-@jit(nopython=True)
+@njit
 def bonus_terrain_damage(Z, Z_xi, Z_yi, i, j):
     return ((Z[Z_xi[i], Z_yi[i]] - Z[Z_xi[j], Z_yi[j]]) / 2.) + 1.
 
 
-@jit(nopython=True)
-def basic(hp, target, damage, Z, Z_xi, Z_yi, i):
+@njit
+def basic(hp, armor, target, damage, Z, Z_xi, Z_yi, i):
     """
     Includes a bonus damage when attacking downhill.
+    *New in 0.3.5*: Factoring in Armor
+    For simplicity, we treat Armor as an extra health-pool for now.
 
-    Total Damage = Base Damage * ((terrain[i] - terrain[j]) / 2) + 1
+    Total Damage (without armor) = Base Damage * ((terrain[i] - terrain[j]) / 2) + 1
     """
-    hp[target[i]] -= (damage[i] * bonus_terrain_damage(Z,Z_xi,Z_yi,i,target[i]))
+    if armor[target[i]] > 0:
+        dmg = (damage[i] * bonus_terrain_damage(Z,Z_xi,Z_yi,i,target[i]))
+        # deal damage to armor (and a little bit to HP)
+        diff = armor[target[i]] - dmg
+        if diff < 0:
+            hp[target[i]] += diff
+        armor[target[i]] -= dmg
+    else:
+        hp[target[i]] -= (damage[i] * bonus_terrain_damage(Z,Z_xi,Z_yi,i,target[i]))

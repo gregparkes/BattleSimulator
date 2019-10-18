@@ -138,7 +138,7 @@ def simulate_battle(M,
                 running = (dm(
                      # variables
                      M["pos"], M["speed"], M["range"], M["acc"], M["dodge"],
-                     M["target"], M["dmg"], M["hp"], round_luck, dists, dir_vec,
+                     M["target"], M["dmg"], M["hp"], M["armor"], round_luck, dists, dir_vec,
                      M["team"], target_map[M["group"][i]],
                      enemy_targets[M["team"][i]], ally_targets[M["team"][i]],
                      Z_m, X_t_ind, Y_t_ind, i

@@ -31,13 +31,55 @@ class Battle(object):
     flow.
     """
 
+    ###################### INIT FUNCTION #####################################
+
+    def __init__(self, db=defaults.default_db(), bounds=(0, 10, 0, 10)):
+        """
+        Instantiate this object with a filepath leading to
+
+        Parameters
+        -------
+        db : str, dict or pandas.DataFrame
+            If str: Is filepath to the database object
+            If dict or pandas.dataFrame: represents actual data.
+            Must contain ["Name", "Allegiance", "HP", "Damage", "Accuracy", "Miss", "Movement Speed", "Range"] columns.
+            See bsm.defaults.default_db() for example.
+        bounds : tuple (4,)
+            The left, right, top and bottom bounds of the battle. Units cannot
+            leave these bounds.
+        """
+        assert isinstance(bounds, tuple), "bounds must be a tuple"
+        assert len(bounds) == 4, "bounds must be of length 4"
+
+        if isinstance(db, str):
+            self.db_ = utils.import_and_check_unit_file(db)
+        elif isinstance(db, dict):
+            self.db_ = pd.DataFrame(db)
+            utils.check_unit_file(self.db_)
+            utils.preprocess_unit_file(self.db_)
+        elif isinstance(db, pd.DataFrame):
+            self.db_ = db.copy()
+            utils.check_unit_file(self.db_)
+            utils.preprocess_unit_file(self.db_)
+        else:
+            raise ValueError("'db' must be of type [str, dict, pd.DataFrame], not {}".format(type(db)))
+
+        self.M_ = None
+        self.sim_ = None
+        # convert db_ index to lower case.
+        self.db_names_ = self.db_.index.tolist()
+        self.db_.index = self.db_.index.str.lower()
+        # initialise a terrain
+        self.T_ = Terrain(bounds, res=.1, form=None)
+
+
     ####################### HIDDEN FUNCTIONS ##############################
 
 
     def _dataset(self, n):
         return np.zeros((n), dtype=[
             ("team",np.uint8,1),("utype",np.uint8,1),("pos",np.float32,2),("hp",np.float32,1),
-            ("range",np.float32,1),("speed",np.float32,1),("acc",np.float32,1),
+            ("armor",np.float32,1),("range",np.float32,1),("speed",np.float32,1),("acc",np.float32,1),
             ("dodge",np.float32,1),("dmg",np.float32,1),("target",np.int32,1),
             ("group",np.uint8,1)
         ])
@@ -109,49 +151,6 @@ class Battle(object):
             )
 
 
-
-    ###################### INIT FUNCTION #####################################
-
-    def __init__(self, db=defaults.default_db(), bounds=(0, 10, 0, 10)):
-        """
-        Instantiate this object with a filepath leading to
-
-        Parameters
-        -------
-        db : str, dict or pandas.DataFrame
-            If str: Is filepath to the database object
-            If dict or pandas.dataFrame: represents actual data.
-            Must contain ["Name", "Allegiance", "HP", "Damage", "Accuracy", "Miss", "Movement Speed", "Range"] columns.
-            See bsm.defaults.default_db() for example.
-        bounds : tuple (4,)
-            The left, right, top and bottom bounds of the battle. Units cannot
-            leave these bounds.
-        """
-        assert isinstance(bounds, tuple), "bounds must be a tuple"
-        assert len(bounds) == 4, "bounds must be of length 4"
-
-        if isinstance(db, str):
-            self.db_ = utils.import_and_check_unit_file(db)
-        elif isinstance(db, dict):
-            self.db_ = pd.DataFrame(db)
-            utils.check_unit_file(self.db_)
-            utils.preprocess_unit_file(self.db_)
-        elif isinstance(db, pd.DataFrame):
-            self.db_ = db.copy()
-            utils.check_unit_file(self.db_)
-            utils.preprocess_unit_file(self.db_)
-        else:
-            raise ValueError("'db' must be of type [str, dict, pd.DataFrame], not {}".format(type(db)))
-
-        self.M_ = None
-        self.sim_ = None
-        # convert db_ index to lower case.
-        self.db_names_ = self.db_.index.tolist()
-        self.db_.index = self.db_.index.str.lower()
-        # initialise a terrain
-        self.T_ = Terrain(bounds, res=.1, form=None)
-
-
     """---------------------- FUNCTIONS --------------------"""
 
     def create_army(self, army_set):
@@ -201,6 +200,7 @@ class Battle(object):
             self.M_["utype"][start:end] = np.argwhere(self.db_.index == u).flatten()[0]
             self.M_["group"][start:end] = i
             self.M_["hp"][start:end] = self.db_.loc[u,"HP"]
+            self.M_["armor"][start:end] = self.db_.loc[u, "Armor"]
             self.M_["range"][start:end] = self.db_.loc[u,"Range"]
             self.M_["speed"][start:end] = self.db_.loc[u,"Movement Speed"]
             self.M_["dodge"][start:end] = self.db_.loc[u,"Miss"]/100.
@@ -291,32 +291,33 @@ class Battle(object):
         return self
 
 
-    def apply_terrain(self, t=None, res=.1, f=None):
+    def apply_terrain(self, t=None, res=.1):
         """
         Applies a Z-plane to the map that the Battle is occuring on by creating
         a bsm.Terrain object.
 
         Parameters
         -------
-        t : str
+        t : str or bsm.Terrain
             Choose from [None, 'grid', 'contour']. Default is None. Contour looks
             the best. Decides how big/resolution to make the terrain based on the
             initialized positions of units.
-        f : function
-            A function z = f(x, y) that performs a mathematical transformation, or None
-            for random hills.
+        res : float
+            The resolution to use for the map
 
         Returns
         -------
         self
         """
-        warnings.warn("argument 'f' is currently unused in apply_terrain(*args).", UserWarning)
         self._is_instantiated()
 
         if t in [None, "grid", "contour"]:
             # add function to t
             self.T_.res_ = res
             self.T_.form_ = t
+            return self
+        elif isinstance(t, Terrain):
+            self.T_ = t
             return self
         else:
             raise ValueError("'t' must be [grid, contour, None]")
@@ -574,6 +575,7 @@ class Battle(object):
         writer : str
             The type of writer to pass to funcanimation.save(). This might
             need to be tweaked on your system.
+            Accepts ['imagemagick', 'ffmpeg', 'pillow']
 
         Returns
         -------

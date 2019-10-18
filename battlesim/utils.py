@@ -13,7 +13,6 @@ import functools
 import warnings
 import time
 
-
 __all__ = []
 
 
@@ -220,13 +219,6 @@ def get_segments(army_set):
     return s
 
 
-def io_table_columns():
-    return [
-        "Name", "Allegiance", "HP", "Damage", "Accuracy",
-        "Miss", "Movement Speed", "Range"
-    ]
-
-
 def check_groups_in_db(groups, db):
     for group_name, count in groups:
         if group_name not in db.index:
@@ -247,11 +239,18 @@ def sum_norm(x):
     return x/np.sum(x)
 
 
+def io_table_columns():
+    return [
+        "Name", "Allegiance", "HP", "Armor","Damage", "Accuracy",
+        "Miss", "Movement Speed", "Range"
+    ]
+
 def io_table_descriptions():
     return [
         "The name of the unit. Format string",
         "The team/allegiance of the unit. Format string, must be hashable",
         "HP: the health of the unit; either an integer or float, no limit. Must be > 0",
+        "Armor: the armor of the unit; either an integer or float, no limit. Must be > 0",
         "Damage: the primary damage of the unit; either integer or float, no limit.",
         "Accuracy: the accuracy of the unit; an integer/float in the range [0, 100]",
         "Miss: the chance of the unit to miss an attack; an integer/float in the range [0, 100]",
