@@ -27,7 +27,7 @@ from .terrain import Terrain
 from .distributions import Distribution
 from . import legacy
 
-__version__ = "0.3.5"
+__version__ = "0.3.6"
 __name__ = "battlesim"
 __doc__ = """
 battlesim - Modelling and animating simulated battles between units in Python.

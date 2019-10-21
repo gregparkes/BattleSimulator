@@ -18,7 +18,7 @@ def get_function_names():
 def get_functions():
     return [aggressive, hit_and_run]
 
-def get_function_map():
+def get_map_functions():
     return dict(zip(get_function_names(), get_functions()))
 
 
@@ -78,6 +78,8 @@ def _rng_terr(mrange, Z, Z_xi, Z_yi, i):
     """ The range of the unit, modified by the terrain measurement. Returns float """
     return mrange[i] * _height_modification(Z[Z_xi[i], Z_yi[i]])
 
+
+""" -------------------------- ACCESSED FUNCTIONS -----------------------------------------"""
 
 @njit
 def aggressive(pos, speed, mrange, acc, dodge, targets,

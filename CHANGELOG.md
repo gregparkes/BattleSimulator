@@ -15,10 +15,13 @@ All notable changes to this project will be documented in this file.
 - `jitcode` for streamlined `numba` use
 - Global `target` functions for initialization
 - Armor calculations for units
+- `example4.ipynb` to reflect changes
 
 ### Changed
 - `__init__` file dependencies
 - Removed file requirement for `Battle()`
+- `Distribution` constructor now accepts copy-constructor of another Distribution
+- Made `Battle` attributes properties to protect them
 
 ### Removed
 - Alternative constructor for `Distribution`

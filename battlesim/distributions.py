@@ -6,7 +6,6 @@ Created on Mon Jul  8 12:13:53 2019
 @author: gparkes
 """
 import numpy as np
-import re
 from scipy import stats
 
 
@@ -27,7 +26,7 @@ class Distribution(object):
 
         Parameters
         --------
-        args : list
+        args : list or Distribution
             Argument (in order) of the associated scipy.stats.<distribution>.
             Accepted parameters are the names of distribution ONLY.
             ['norm', 'uniform', 'gamma', 'beta', 'norm', 'laplace', 'exp', 'chi']
@@ -40,6 +39,15 @@ class Distribution(object):
         self._dist = None
 
         if len(args) > 0:
+            if len(args) == 1 and isinstance(args[0], Distribution):
+                # copy
+                self._dist = args[0]._dist
+                self._x_param = args[0]._x_param
+                self._y_param = args[0]._y_param
+                self._option_i = args[0]._option_i
+                self._dist_func = self.options_["funcs"][self._option_i]
+                return
+            # assuming we are using the standard arguments for scipy.stats
             self._get_distribution_name_from_args(*args)
         else:
             self._get_distribution_name_from_kwargs(**parameters)
@@ -133,11 +141,12 @@ class Distribution(object):
         self.y_param_ = d_yk
 
 
-    def _get_x_param(self):
+    @property
+    def x_param_(self):
         return self._x_param
-    def _get_y_param(self):
-        return self._y_param
-    def _set_x_param(self, x):
+
+    @x_param_.setter
+    def x_param_(self, x):
         if not isinstance(x, dict):
             raise TypeError("'x' must be of type [dict]")
         if len(x) == 0:
@@ -149,7 +158,12 @@ class Distribution(object):
                                  .format(keyword, self.dist_, self.options_["acc_params"][self._option_i]))
         self._x_param = x
 
-    def _set_y_param(self, y):
+    @property
+    def y_param_(self):
+        return self._y_param
+
+    @y_param_.setter
+    def y_param_(self, y):
         if not isinstance(y, dict):
             raise TypeError("'x' must be of type [dict]")
         if len(y) == 0:
@@ -161,16 +175,23 @@ class Distribution(object):
                                  .format(keyword, self.dist_, self._options["acc_params"][self._option_i]))
         self._y_param = y
 
+
     def _get_dist_names(self):
         return self.options_["names"]
-    def _get_dist(self):
+
+
+    @property
+    def dist_(self):
         return self._dist
-    def _set_dist(self, dist):
+
+    @dist_.setter
+    def dist_(self, dist):
         if not isinstance(dist, str):
             raise TypeError("dist must be of type [str]")
         if dist not in self.options_["names"]:
             raise ValueError("distribution '{}' not found in {}".format(dist, self.options_["names"]))
         self._dist = dist
+
 
     def _check_parameters(self, params):
         for p, v in params.items():
@@ -179,10 +200,14 @@ class Distribution(object):
             if not isinstance(v, (float, np.float, np.float64, int, np.int, np.int64)):
                 raise TypeError("parameter item must be of type [int, float]")
 
-    # extract mean, sd from x_param_, y_param_
-    def _get_mean(self):
+
+    @property
+    def mean_(self):
         return np.asarray([self.x_param_["loc"], self.y_param_["loc"]])
-    def _get_options(self):
+
+
+    @property
+    def options_(self):
         return {
             "names": ["uniform", 'gamma', 'beta', 'norm', 'laplace', 'exp', 'chi'],
             "funcs": [stats.uniform, stats.gamma, stats.beta, stats.norm, stats.laplace,
@@ -201,12 +226,6 @@ class Distribution(object):
             ]
         }
 
-
-    dist_ = property(_get_dist, _set_dist, doc="the selected distribution to use")
-    x_param_ = property(_get_x_param, _set_x_param, doc="x-parameters directly passed to scipy.stats.<distribution>")
-    y_param_ = property(_get_y_param, _set_y_param, doc="y-parameters directly passed to scipy.stats.<distribution>")
-    mean_ = property(_get_mean, "Means of the distribution")
-    options_ = property(_get_options, "Dictionary of options for Distribution objects")
 
     def setx(self, **x):
         """

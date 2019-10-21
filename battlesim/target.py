@@ -36,26 +36,28 @@ from numba import njit
 
 from . import jitcode
 
-def get_init_function_names():
+
+def get_function_names():
     return ["random", "nearest", "close_weak"]
 
-def get_global_function_names():
-    return ["global_" + n for n in get_init_function_names()]
-
-def get_init_functions():
+def get_functions():
     return [random, nearest, close_weak]
+
+def get_map_functions():
+    return dict(zip(get_function_names(), get_functions()))
+
+
+def get_global_function_names():
+    return ["global_" + n for n in get_function_names()]
 
 def get_global_functions():
     return [global_random, global_nearest, global_close_weak]
-
-def get_map_functions():
-    return dict(zip(get_init_function_names(), get_init_functions()))
 
 def get_global_map_functions():
     return dict(zip(get_global_function_names(), get_global_functions()))
 
 
-__all__ = get_init_function_names() + get_global_function_names()
+__all__ = get_function_names() + get_global_function_names()
 
 
 ############## AI FUNCTIONS ##############################

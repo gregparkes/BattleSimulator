@@ -18,7 +18,7 @@ __all__ = ["simulate_battle"]
 
 
 def frame_columns():
-    return ["army", "allegiance", "alive", "x", "y", "dir_x", "dir_y"]
+    return ["army", "allegiance", "alive", "armor", "hp", "x", "y", "dir_x", "dir_y"]
 
 
 def _copy_frame(Frames, M, i):
@@ -27,6 +27,7 @@ def _copy_frame(Frames, M, i):
     Frames["pos"][i] = M["pos"]
     Frames["target"][i] = M["target"]
     Frames["hp"][i] = M["hp"]
+    Frames["armor"][i] = M["armor"]
     # create direction norm
     dnorm = jitcode.direction_norm(M["pos"][M["target"]] - M["pos"])
     Frames["dpos"][i] = dnorm
@@ -45,11 +46,14 @@ def _convert_to_pandas(frames):
         "army": frames["utype"][s],
         "allegiance": frames["team"][s],
         "alive": frames["hp"][s] > 0,
+        "hp": np.clip(frames["hp"][s], a_min=0., a_max=None),
+        "armor": np.clip(frames["armor"][s], a_min=0, a_max=None),
         "x": frames["pos"][s][:,0],
         "y": frames["pos"][s][:,1],
         "dir_x": frames["dpos"][s][:,0],
         "dir_y": frames["dpos"][s][:,1]
     }, index=frames["frame"][s]) for s in range(steps)])
+    DF.index.name = "frame"
     return DF
 
 
@@ -104,7 +108,7 @@ def simulate_battle(M,
         frames = np.zeros(
                 (max_step+1, M.shape[0]),
                 dtype=[("frame", np.int64, 1), ("pos", np.float32, 2), ("target", np.int32, 1),
-                       ("hp", np.float32, 1), ("dpos", np.float32, 2), ("team", np.uint8, 1),
+                       ("hp", np.float32, 1), ("armor", np.float32, 1), ("dpos", np.float32, 2), ("team", np.uint8, 1),
                        ("utype", np.uint8, 1)
                 ]
         )

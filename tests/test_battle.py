@@ -27,7 +27,6 @@ def test_battle_attributes():
 
     assert b.M_ is None, "M_ should not be set"
     assert type(b.db_) == pd.DataFrame, "db_ must be a pandas.dataframe"
-    assert isinstance(b.db_names_, (list, tuple)), "db_names_ must be a list, tuple"
     assert b.sim_ is None, "sim_ not set yet"
 
     with pytest.raises(AttributeError):
@@ -44,9 +43,9 @@ def test_battle_create_army():
 
     # create army
     # try normal
-    with pytest.raises(AssertionError):
+    with pytest.raises(TypeError):
         b.create_army("Hello")
-    with pytest.raises(AssertionError):
+    with pytest.raises(TypeError):
         b.create_army(pd.DataFrame({"ho": [1, 2], "hi": [2, 3]}))
     with pytest.raises(TypeError):
         b.create_army(["Clone"])

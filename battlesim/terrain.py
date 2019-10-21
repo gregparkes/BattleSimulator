@@ -75,21 +75,24 @@ class Terrain(object):
         self.form_ = form
         self.bounds_ = dim
         self.res_ = res
-        self.Z_ = None
+        self._Z = None
 
     """ '################################## ATTRIBUTES ########################################### """
 
-
-    def _get_form(self):
+    @property
+    def form_(self):
         return self._form
-    def _set_form(self, f):
+    @form_.setter
+    def form_(self, f):
         if f not in [None, "grid", "contour"]:
             raise AttributeError("'form' must be [None, grid, contour]")
         self._form = f
 
-    def _get_bounds(self):
+    @property
+    def bounds_(self):
         return self._bounds
-    def _set_bounds(self, dim):
+    @bounds_.setter
+    def bounds_(self, dim):
         if not isinstance(dim, (list, tuple)):
             raise TypeError("'dim' must be of type [list, tuple]")
         if len(dim) != 4:
@@ -101,21 +104,28 @@ class Terrain(object):
         utils.is_ntuple(dim, *([(int, float, np.float, np.int, np.float32, np.int32)]*4))
         self._bounds = dim
 
-    def _get_res(self):
+    @property
+    def res_(self):
         return self._res
-    def _set_res(self, r):
+    @res_.setter
+    def res_(self, r):
         if not isinstance(r, (float, np.float)):
             raise TypeError("'res' must be of type [float]")
         if r < 1e-8:
             raise ValueError("'res' cannot be less than 0")
         self._res = r
 
+    @property
+    def Z_(self):
+        return self._Z
 
-    form_ = property(_get_form, _set_form, "The type of terrain")
-    bounds_ = property(_get_bounds, _set_bounds, "Boundaries of the terrain")
-    res_ = property(_get_res, _set_res, "resolution of the terrain")
 
     ############################## HIDDEN FUNCTIONS ################################################
+
+
+    def _m_size(self):
+        return (int((self.bounds_[1] - self.bounds_[0]) / self.res_),
+                int((self.bounds_[3] - self.bounds_[2]) / self.res_))
 
     def _generate_random_terrain(self, n_gauss=100):
         xmin, xmax, ymin, ymax = self.bounds_
@@ -153,11 +163,6 @@ class Terrain(object):
         return X[:, 0], Y[0, :]
 
 
-    def m_size(self):
-        return (int((self.bounds_[1] - self.bounds_[0]) / self.res_),
-                int((self.bounds_[3] - self.bounds_[2]) / self.res_))
-
-
     def generate(self, f=None, n_random=50):
         """
         Generates the terrain using a function.
@@ -173,11 +178,11 @@ class Terrain(object):
             The contour grid for the plane.
         """
         if self.form_ is None:
-            self.Z_ = np.zeros(self.m_size())
+            self._Z = np.zeros(self._m_size())
         if f is None:
-            self.Z_ = self._generate_random_terrain(n_random)
+            self._Z = self._generate_random_terrain(n_random)
         elif callable(f):
-            self.Z_ = jitcode.minmax(f(*self.get_grid()))
+            self._Z = jitcode.minmax(f(*self.get_grid()))
         else:
             raise TypeError("'f' must be a function or None")
         return self

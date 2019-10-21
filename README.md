@@ -2,7 +2,7 @@
 
 The aim of this side project is to become familiar with Python classes and with primitive forms of animation and simulating environments. We map units onto a 2D plane and run simple simulations that involve them moving towards an enemy unit and attacking it. Rounds finish when one team has completely wiped out the other side, or we have reached the maximum number of timesteps.
 
-**Current version: 0.3.5**
+**Current version: 0.3.6**
 
 ![Image not found](simulations/main.gif)
 
@@ -138,14 +138,14 @@ If you're interested in seeing how each team fare over multiple runs (to elimina
 
 This is the beginning of creating an interface similar to Machine Learning, whereby the outcome can be a classification (team) or regression (number of units surviving) target, and the unit compositions, aspects of the engine etc., can be inputs.
 
-## New in 0.3.5
+## New in 0.3.6
 
 There are a number of exciting changes in this current update, including:
 
-- Introduction of **Terrains**. This is a major expansion giving 3D pseudodepth to animated battles. Depth now influences movement speed of units, with terrain penalties applied (up to 50%) on higher hills.
-- Boundary checking for units
-- Many internal bug fixes
-- Provided `pip` support
+- Introduction of **Terrains**. This is a major expansion giving 3D pseudodepth to animated battles. Depth now influences movement speed of units, with terrain penalties applied (up to 50%) on higher hills. They also increase range for units on hills and increase damage when firing downhill on an enemy unit.
+- Introduction of *armor*. Armor acts as another health buffer to protect units from harm.
+
+Further changes can be found in the `CHANGELOG.md` file.
 
 ## Teaching series
 
