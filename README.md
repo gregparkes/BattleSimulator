@@ -12,7 +12,7 @@ The code for the primary engine is found in `battlesim/`, and implementations/ex
 
 ## Installation
 
-`battlesim` requires the following [dependencies](https://github.com/gregparkes/BattleSimulator/requirements.yml):
+`battlesim` requires the following [dependencies](environment.yml):
 
 * python (>=3.5)
 * numpy (>=1.11.0)
@@ -70,7 +70,7 @@ pytest -v
 
 ## How to use: The Basics
 
-Firstly, check the requirements for using this simulator, of which most come with the **Anaconda** distribution. In addition you will need the **ffmpeg** video conversion package to generate the simulations as animations.
+Firstly, check the requirements for using this simulator, of which most come with the [Anaconda distribution](https://www.anaconda.com/). In addition you will need the **ffmpeg** video conversion package to generate the simulations as animations.
 
 Secondly, you will need to import the package as:
 
@@ -128,7 +128,7 @@ Here `sim_jupyter` treats each unit object as a quiver arrow in 2-d space (posit
 
 ![Image not found](images/quiver1.svg)
 
-The rest is for you to explore, tweak and enjoy watching arrows move towards each other and kill each other. We have extensive [examples](https://github.com/gregparkes/BattleSimulator/examples) to look at within this repository.
+The rest is for you to explore, tweak and enjoy watching arrows move towards each other and kill each other. We have extensive [examples](https://github.com/gregparkes/BattleSimulator/tree/master/examples) to look at within this repository.
 
 ## One step further: Repeated runs
 
@@ -147,11 +147,11 @@ There are a number of exciting changes in this current update, including:
 - Introduction of **Terrains**. This is a major expansion giving 3D pseudodepth to animated battles. Depth now influences movement speed of units, with terrain penalties applied (up to 50%) on higher hills. They also increase range for units on hills and increase damage when firing downhill on an enemy unit.
 - Introduction of *armor*. Armor acts as another health buffer to protect units from harm.
 
-Further changes can be found in the [Changelog](https://github.com/gregparkes/BattleSimulator/CHANGELOG.md).
+Further changes can be found in the [Changelog](CHANGELOG.md).
 
 ## Teaching series
 
-As well as a fully-fledged package simulator, you can find [teaching material](https://github.com/gregparkes/BattleSimulator/teaching) in Jupyter notebook form within the `teaching/` subfolder, that takes users through the development process of this package, compares and contrasts Object-Oriented (OO) implementations to numpy-esque implementations, their performance, plotting, animations and more. We hope you find this material interesting and will aid as you use the package and possibly develop packages of your own in the future.
+As well as a fully-fledged package simulator, you can find [teaching material](https://github.com/gregparkes/BattleSimulator/tree/master/teaching) in Jupyter notebook form within the `teaching/` subfolder, that takes users through the development process of this package, compares and contrasts Object-Oriented (OO) implementations to numpy-esque implementations, their performance, plotting, animations and more. We hope you find this material interesting and will aid as you use the package and possibly develop packages of your own in the future.
 
 Material covered so far:
 
@@ -169,4 +169,4 @@ This is still in active development retracing the steps of the project. All lega
 
 ***
 
-Ensure that any use of this material is appropriately referenced and in compliance with the [license](https://github.com/gregparkes/BattleSimulator/LICENSE.txt).
+Ensure that any use of this material is appropriately referenced and in compliance with the [license](LICENSE.txt).
