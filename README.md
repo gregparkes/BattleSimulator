@@ -2,6 +2,8 @@
 
 The aim of this side project is to become familiar with Python classes and with primitive forms of animation and simulating environments. We map units onto a 2D plane and run simple simulations that involve them moving towards an enemy unit and attacking it. Rounds finish when one team has completely wiped out the other side, or we have reached the maximum number of timesteps.
 
+Users familiar with [Totally Accurate Battle Simulator](https://steamcommunity.com/app/508440) will hopefully love this package as a lot of the basic ideas are derived from this.
+
 **Current version: 0.3.6**
 
 ![Image not found](simulations/main.gif)
@@ -10,7 +12,7 @@ The code for the primary engine is found in `battlesim/`, and implementations/ex
 
 ## Installation
 
-`battlesim` requires the following dependencies:
+`battlesim` requires the following [dependencies](https://github.com/gregparkes/BattleSimulator/requirements.yml):
 
 * python (>=3.5)
 * numpy (>=1.11.0)
@@ -23,13 +25,13 @@ With the following for exporting the animation as a gif:
 
 * ffmpeg (>=4.2)
 
-The following packages are not required but significantly improve the usage of this package:
+The following packages are not required but significantly improve the usage of this package. If you are unfamiliar with the Jupyter project see [here](https://jupyter.org/):
 
 * jupyter (1.0.0)
 
 ### From PyPI
 
-If you have working versions of the dependencies, similarly install using `pip` (current version 0.3.5):
+If you have working versions of the dependencies, similarly [install using pip](https://pypi.org/project/battlesim/) (version 0.3.5):
 
 ```bash
 pip install battlesim
@@ -39,7 +41,7 @@ We recommend updating the dependencies yourself using conda rather than through 
 
 ### From Cloning the GitHub Repository
 
-Alternatively if you are cloning this GitHub repository, use:
+Alternatively if you are cloning this [GitHub repository](https://github.com/gregparkes/BattleSimulator), use:
 
 ```bash
 git clone https://github.com/gregparkes/BattleSimulator
@@ -126,7 +128,7 @@ Here `sim_jupyter` treats each unit object as a quiver arrow in 2-d space (posit
 
 ![Image not found](images/quiver1.svg)
 
-The rest is for you to explore, tweak and enjoy watching arrows move towards each other and kill each other.
+The rest is for you to explore, tweak and enjoy watching arrows move towards each other and kill each other. We have extensive [examples](https://github.com/gregparkes/BattleSimulator/examples) to look at within this repository.
 
 ## One step further: Repeated runs
 
@@ -145,11 +147,11 @@ There are a number of exciting changes in this current update, including:
 - Introduction of **Terrains**. This is a major expansion giving 3D pseudodepth to animated battles. Depth now influences movement speed of units, with terrain penalties applied (up to 50%) on higher hills. They also increase range for units on hills and increase damage when firing downhill on an enemy unit.
 - Introduction of *armor*. Armor acts as another health buffer to protect units from harm.
 
-Further changes can be found in the `CHANGELOG.md` file.
+Further changes can be found in the [Changelog](https://github.com/gregparkes/BattleSimulator/CHANGELOG.md).
 
 ## Teaching series
 
-As well as a fully-fledged package simulator, you can find teaching material in Jupyter notebook form within the `teaching/` subfolder, that takes users through the development process of this package, compares and contrasts Object-Oriented (OO) implementations to numpy-esque implementations, their performance, plotting, animations and more. We hope you find this material interesting and will aid as you use the package and possibly develop packages of your own in the future.
+As well as a fully-fledged package simulator, you can find [teaching material](https://github.com/gregparkes/BattleSimulator/teaching) in Jupyter notebook form within the `teaching/` subfolder, that takes users through the development process of this package, compares and contrasts Object-Oriented (OO) implementations to numpy-esque implementations, their performance, plotting, animations and more. We hope you find this material interesting and will aid as you use the package and possibly develop packages of your own in the future.
 
 Material covered so far:
 
@@ -167,4 +169,4 @@ This is still in active development retracing the steps of the project. All lega
 
 ***
 
-Ensure that any use of this material is appropriately referenced and in compliance with the license.
+Ensure that any use of this material is appropriately referenced and in compliance with the [license](https://github.com/gregparkes/BattleSimulator/LICENSE.txt).
