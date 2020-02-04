@@ -193,4 +193,4 @@ def test_simulate():
 
     # check columns
     for c in F.columns:
-        assert c in bsm.simulator_fast.frame_columns(), "column '{}' not in df.columnset".format(c)
+        assert c in bsm._simulator_fast.frame_columns(), "column '{}' not in df.columnset".format(c)

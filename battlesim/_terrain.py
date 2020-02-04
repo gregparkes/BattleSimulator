@@ -11,7 +11,7 @@ This can be fixed size or infinite if it follows some mathematical function.
 import numpy as np
 from matplotlib.pyplot import subplots
 from scipy.stats import multivariate_normal
-from . import jitcode
+from . import _jitcode
 from . import utils
 
 def get_tile_size(dim, res):
@@ -141,7 +141,7 @@ class Terrain(object):
         # add probabilities
         Z = Z_cont.sum(axis=2)
         # scale between 0 and 1 and return
-        return jitcode.minmax(Z)
+        return _jitcode.minmax(Z)
 
 
     def __repr__(self):
@@ -182,7 +182,7 @@ class Terrain(object):
         if f is None:
             self._Z = self._generate_random_terrain(n_random)
         elif callable(f):
-            self._Z = jitcode.minmax(f(*self.get_grid()))
+            self._Z = _jitcode.minmax(f(*self.get_grid()))
         else:
             raise TypeError("'f' must be a function or None")
         return self

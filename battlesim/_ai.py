@@ -7,16 +7,18 @@ Created on Tue Oct  8 11:07:18 2019
 """
 from numba import njit
 
-from . import move
-from . import hit
-from . import damage
+from . import _move
+from . import _hit
+from . import _damage
 
 
 def get_function_names():
     return ["aggressive", "hit_and_run"]
 
+
 def get_functions():
     return [aggressive, hit_and_run]
+
 
 def get_map_functions():
     return dict(zip(get_function_names(), get_functions()))
@@ -48,13 +50,14 @@ Parameters:
     i : (int) the current unit's index
 """
 
+
 @njit
 def _height_modification(h):
     """
     height modifier follows:
-        h_{mod} = 1 + (h^2 / 3), h \in [0, 1]
+        h_{mod} = 1 + (h^2 / 3), h in [0, 1]
     """
-    return (h**2 / 3.) + 1.
+    return (h ** 2 / 3.) + 1.
 
 
 @njit
@@ -75,11 +78,12 @@ def _select_enemy(f, pos, targets, hp, enemies, allies, i):
 
 @njit
 def _rng_terr(mrange, Z, Z_xi, Z_yi, i):
-    """ The range of the unit, modified by the terrain measurement. Returns float """
+    """ The range of the unit, modified by the terrain measurement. Returns float. """
     return mrange[i] * _height_modification(Z[Z_xi[i], Z_yi[i]])
 
 
 """ -------------------------- ACCESSED FUNCTIONS -----------------------------------------"""
+
 
 @njit
 def aggressive(pos, speed, mrange, acc, dodge, targets,
@@ -96,14 +100,14 @@ def aggressive(pos, speed, mrange, acc, dodge, targets,
         # if not in range, move towards target, or hit a chance (5%) and move forward anyway.
         if distances[i] > _rng_terr(mrange, Z, Z_xi, Z_yi, i) or luck[i, 1] < 0.05:
             """# move unit towards attacking enemy."""
-            pos[i, :] += move.to_enemy(speed, dd, distances, Z, Z_xi, Z_yi, i)
+            pos[i, :] += _move.to_enemy(speed, dd, distances, Z, Z_xi, Z_yi, i)
             return True
         else:
             """# calculate the chance of hitting the opponent"""
-            h_chance = hit.basic_chance(acc, dodge, distances, i, targets[i])
+            h_chance = _hit.basic_chance(acc, dodge, distances, i, targets[i])
             """if hit chance overcomes round luck.. deal damage to HP."""
             if h_chance > luck[i, 0]:
-                damage.basic(hp, armor, targets, dmg, Z, Z_xi, Z_yi, i)
+                _damage.basic(hp, armor, targets, dmg, Z, Z_xi, Z_yi, i)
             return True
     else:
         return False
@@ -121,37 +125,37 @@ def hit_and_run(pos, speed, mrange, acc, dodge, targets,
     if _select_enemy(target_f, pos, targets, hp, enemies, allies, i):
 
         if (speed[i] > speed[targets[i]]) and \
-        (_rng_terr(mrange, Z, Z_xi, Z_yi, i) > _rng_terr(mrange, Z, Z_xi, Z_yi, targets[i])):
+                (_rng_terr(mrange, Z, Z_xi, Z_yi, i) > _rng_terr(mrange, Z, Z_xi, Z_yi, targets[i])):
 
             # if we're out of range, move towards
             if distances[i] > _rng_terr(mrange, Z, Z_xi, Z_yi, i):
                 """# move towards unit."""
-                pos[i, :] += move.to_enemy(speed, dd, distances, Z, Z_xi, Z_yi, i)
+                pos[i, :] += _move.to_enemy(speed, dd, distances, Z, Z_xi, Z_yi, i)
                 return True
             # else if the enemy is in range, back off
             elif distances[i] < _rng_terr(mrange, Z, Z_xi, Z_yi, targets[i]):
                 """# move directly away from unit."""
-                pos[i, :] -= move.to_enemy(speed, dd, distances, Z, Z_xi, Z_yi, i)
+                pos[i, :] -= _move.to_enemy(speed, dd, distances, Z, Z_xi, Z_yi, i)
                 return True
             else:
                 """# so we're in range, the enemy is not, attack."""
-                h_chance = hit.basic_chance(acc, dodge, distances, i, targets[i])
+                h_chance = _hit.basic_chance(acc, dodge, distances, i, targets[i])
                 if h_chance > luck[i, 0]:
-                    damage.basic(hp, armor, targets, dmg, Z, Z_xi, Z_yi, i)
+                    _damage.basic(hp, armor, targets, dmg, Z, Z_xi, Z_yi, i)
                 return True
         else:
             # otherwise just perform an 'aggressive' model.
             return aggressive(pos, speed, mrange, acc, dodge, targets,
-                       dmg, hp, armor, luck, distances, dd,
-                       team, target_f, enemies, allies,
-                       Z, Z_xi, Z_yi, i)
+                              dmg, hp, armor, luck, distances, dd,
+                              team, target_f, enemies, allies,
+                              Z, Z_xi, Z_yi, i)
     else:
         return False
 
 
 def defensive(pos, speed, mrange, acc, dodge, targets,
-                dmg, hp, armor, luck, distances, dd, team, target_f,
-                enemies, allies, Z, Z_xi, Z_yi, i):
+              dmg, hp, armor, luck, distances, dd, team, target_f,
+              enemies, allies, Z, Z_xi, Z_yi, i):
     """
     This AI option attempts to find a nearby high hill and sit on it, waiting for
     a nearby enemy.

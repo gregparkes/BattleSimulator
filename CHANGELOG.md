@@ -2,6 +2,11 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.3.6] - 2020-02-04 (In Development)
+
+### Changed
+- Large-scale internal adjustments, code cleaning, new folders and files
+
 ## [0.3.5] - 2019-10-18
 ### Added
 - `Terrain`. This is a major expansion giving 3D pseudodepth to animated battles. Depth now influences:

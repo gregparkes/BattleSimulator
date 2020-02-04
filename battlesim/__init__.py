@@ -21,11 +21,10 @@ del hard_dependencies, dependency, missing_dependencies
 
 
 # imports
-
-from .battle import Battle
-from .terrain import Terrain
-from .distributions import Distribution
-from . import legacy
+from ._battle import Battle
+from ._terrain import Terrain
+from ._distributions import Distribution
+from . import __legacy
 
 __version__ = "0.3.6"
 __name__ = "battlesim"

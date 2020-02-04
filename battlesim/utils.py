@@ -13,32 +13,26 @@ import functools
 import warnings
 import time
 
-__all__ = []
-
 
 def check_columns(df, list_of_columns):
+    """Check that list of columns elements are not in df."""
     for l in list_of_columns:
         if l not in df.columns:
             raise ValueError("column '{}' not found in dataframe.".format(l))
 
 
 def check_list_type(L, t):
+    """Checks that every element in L is of type t."""
     for i, l in enumerate(L):
         if not isinstance(l, t):
             raise TypeError("type '{}' not found in list at index [{}]".format(t, i))
     return True
 
 
-def toflat(L):
-    """
-    Given nd-list, flatten to single dimension.
-    """
-    return list(it.chain.from_iterable(L))
-
-
 def colorwheel():
-    return ["red", "blue", "green", "orange", "purple", "brown", "black",
-            "cyan", "yellow"]
+    """All of the supported named-types in Matplotlib."""
+    return ("red", "blue", "green", "orange", "purple", "brown", "black",
+            "cyan", "yellow")
 
 
 def check_in_list(L, sl):
@@ -55,8 +49,8 @@ def time_n(method, r=5, *args, **kws):
     """
     r for repeats
     """
-    T = np.zeros(r+1,)
-    for i in range(r+1):
+    T = np.zeros(r + 1, )
+    for i in range(r + 1):
         ts = time.time()
         _ = method(*args, **kws)
         T[i] = time.time() - ts
@@ -65,6 +59,7 @@ def time_n(method, r=5, *args, **kws):
 
 
 def timed(method, *args, **kw):
+    """Time a particular function."""
     ts = time.time()
     result = method(*args, **kw)
     te = time.time()
@@ -76,23 +71,24 @@ def timed(method, *args, **kw):
     100800 + (days)
     """
     if diff < 80:
-    	out_str = "%r: %2.2f s"
-    elif diff >= 80 and diff < 4800:
-    	out_str = "%r: %2.2f m"
-    	diff /= 60.
-    elif diff >= 4800 and diff < 100800:
-    	out_str = "%r: %2.2f h"
-    	diff /= 3600.
+        out_str = "%r: %2.2f s"
+    elif 80 <= diff < 4800:
+        out_str = "%r: %2.2f m"
+        diff /= 60.
+    elif 4800 <= diff < 100800:
+        out_str = "%r: %2.2f h"
+        diff /= 3600.
     else:
-    	out_str = "%r: %2.2f d"
-    	diff /= 86400.
+        out_str = "%r: %2.2f d"
+        diff /= 86400.
 
-    print(out_str % (method.__name__, (diff)))
+    print(out_str % (method.__name__, diff))
     return result
 
 
 def timeit(method):
-    def timed(*args, **kw):
+    """A decorator for timing methods."""
+    def _timed(*args, **kw):
         ts = time.time()
         result = method(*args, **kw)
         te = time.time()
@@ -104,20 +100,21 @@ def timeit(method):
         100800 + (days)
         """
         if diff < 80:
-        	out_str = "%r: %2.2f s"
-        elif diff >= 80 and diff < 4800:
-        	out_str = "%r: %2.2f m"
-        	diff /= 60.
-        elif diff >= 4800 and diff < 100800:
-        	out_str = "%r: %2.2f h"
-        	diff /= 3600.
+            out_str = "%r: %2.2f s"
+        elif 80 <= diff < 4800:
+            out_str = "%r: %2.2f m"
+            diff /= 60.
+        elif 4800 <= diff < 100800:
+            out_str = "%r: %2.2f h"
+            diff /= 3600.
         else:
-        	out_str = "%r: %2.2f d"
-        	diff /= 86400.
+            out_str = "%r: %2.2f d"
+            diff /= 86400.
 
-        print(out_str % (method.__name__, (diff)))
+        print(out_str % (method.__name__, diff))
         return result
-    return timed
+
+    return _timed
 
 
 def is_twotuple(L, type1, type2):
@@ -138,7 +135,6 @@ def is_twotuple(L, type1, type2):
         return True
     else:
         raise TypeError("'L' must be of type 'list, tuple'")
-    return False
 
 
 def is_ntuple(L, *types):
@@ -156,66 +152,15 @@ def is_ntuple(L, *types):
         raise TypeError("'L' must be of type [list, tuple]")
 
 
-def to_remove(func):
-    """
-    This decorator marks functions to be removed in a future version.
-    """
-    @functools.wraps(func)
-    def new_func(*args, **kwargs):
-        warnings.simplefilter('always', FutureWarning)  # turn off filter
-        warnings.warn("Call to deprecated function {} will be removed in a future version.".format(func.__name__),
-                      category=FutureWarning,
-                      stacklevel=2)
-        warnings.simplefilter('default', FutureWarning)  # reset filter
-        return func(*args, **kwargs)
-    return new_func
-
-
-def deprecated(func):
-    """This is a decorator which can be used to mark functions
-    as deprecated. It will result in a warning being emitted
-    when the function is used."""
-    @functools.wraps(func)
-    def new_func(*args, **kwargs):
-        warnings.simplefilter('always', DeprecationWarning)  # turn off filter
-        warnings.warn("Call to deprecated function {}.".format(func.__name__),
-                      category=DeprecationWarning,
-                      stacklevel=2)
-        warnings.simplefilter('default', DeprecationWarning)  # reset filter
-        return func(*args, **kwargs)
-    return new_func
-
-
-def factor(n):
-    """
-    Collect a list of factors given an integer, excluding 1 and n
-    """
-    def prime_powers(n):
-        # c goes through 2, 3, 5 then the infinite (6n+1, 6n+5) series
-        for c in it.accumulate(it.chain([2, 1, 2], it.cycle([2,4]))):
-            if c*c > n: break
-            if n % c: continue
-            d, p = (), c
-            while not n % c:
-                n, p, d = n // c, p * c, d + (p,)
-            yield(d)
-        if n > 1: yield((n,))
-
-    r = [1]
-    for e in prime_powers(n):
-        r += [a*b for a in r for b in e]
-    return r
-
-
 def get_segments(army_set):
     """
     Where army_set[i][0] is the unit type, army_set[i][1] is the N, (number of units)
     """
     s = [(0, army_set[0][1])]
     total = army_set[0][1]
-    for i in range(1,len(army_set)):
-        s.append((total,total+army_set[i][1]))
-        total+=army_set[i][1]
+    for i in range(1, len(army_set)):
+        s.append((total, total + army_set[i][1]))
+        total += army_set[i][1]
     return s
 
 
@@ -227,36 +172,40 @@ def check_groups_in_db(groups, db):
 
 
 def slice_loop(loopable, n):
+    """Returns n elements from an infinite loop of loopable."""
     return list(it.islice(it.cycle(loopable), 0, n))
 
 
 def max_norm(x):
     """Assumes x is a vector"""
-    return x/np.max(x)
+    return x / np.max(x)
 
 
 def sum_norm(x):
-    return x/np.sum(x)
+    return x / np.sum(x)
 
 
 def io_table_columns():
-    return [
-        "Name", "Allegiance", "HP", "Armor","Damage", "Accuracy",
+    """Accepted column names for a unit file."""
+    return (
+        "Name", "Allegiance", "HP", "Armor", "Damage", "Accuracy",
         "Miss", "Movement Speed", "Range"
-    ]
+    )
+
 
 def io_table_descriptions():
-    return [
+    """Descriptions corresponding to each accepted column name for a unit file."""
+    return (
         "The name of the unit. Format string",
         "The team/allegiance of the unit. Format string, must be hashable",
-        "HP: the health of the unit; either an integer or float, no limit. Must be > 0",
-        "Armor: the armor of the unit; either an integer or float, no limit. Must be > 0",
-        "Damage: the primary damage of the unit; either integer or float, no limit.",
+        "HP: the health of the unit; an integer or float, no limit. Must be > 0",
+        "Armor: the armor of the unit; an integer or float, no limit. Must be > 0",
+        "Damage: the primary damage of the unit; integer or float, no limit.",
         "Accuracy: the accuracy of the unit; an integer/float in the range [0, 100]",
         "Miss: the chance of the unit to miss an attack; an integer/float in the range [0, 100]",
         "Movement Speed: the movement speed of the unit; float.",
-        "Range: the range of the unit; either integer or float, Must be > 0"
-    ]
+        "Range: the range of the unit; integer or float, Must be > 0"
+    )
 
 
 def check_unit_file(df):

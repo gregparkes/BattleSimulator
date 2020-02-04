@@ -10,7 +10,7 @@ This class handles the primary simulator functions given some data.
 import pandas as pd
 import numpy as np
 
-from . import jitcode
+from . import _jitcode
 
 ############################################################################
 
@@ -29,7 +29,7 @@ def _copy_frame(Frames, M, i):
     Frames["hp"][i] = M["hp"]
     Frames["armor"][i] = M["armor"]
     # create direction norm
-    dnorm = jitcode.direction_norm(M["pos"][M["target"]] - M["pos"])
+    dnorm = _jitcode.direction_norm(M["pos"][M["target"]] - M["pos"])
     Frames["dpos"][i] = dnorm
     Frames["team"][i] = M["team"]
     Frames["utype"][i] = M["utype"]
@@ -120,14 +120,14 @@ def simulate_battle(M,
             _copy_frame(frames, M, t)
 
         # perform a boundary check.
-        jitcode.boundary_check(xmin, xmax, ymin, ymax, M["pos"])
+        _jitcode.boundary_check(xmin, xmax, ymin, ymax, M["pos"])
         # list of indices per unit for which tile they are sitting on (X, Y)
         X_t_ind = np.argmin(np.abs(M["pos"][:, 0] - X_m), axis=0)
         Y_t_ind = np.argmin(np.abs(M["pos"][:, 1] - Y_m), axis=0)
 
         """# pre-compute the direction derivatives and magnitude/distance for each unit to it's target in batch."""
         dir_vec = M["pos"][M["target"]] - M["pos"]
-        dists = jitcode.euclidean_distance(dir_vec)
+        dists = _jitcode.euclidean_distance(dir_vec)
         """precompute enemy and ally target listings"""
         enemy_targets = [np.argwhere((M["hp"]>0) & (M["team"]!=T)).flatten() for T in teams]
         ally_targets = [np.argwhere((M["hp"]>0) & (M["team"]==T)).flatten() for T in teams]

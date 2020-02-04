@@ -15,6 +15,7 @@ import numpy as np
 
 from . import utils
 
+
 def rank_score(db, w=None):
     """
     Using the dataset, we can 'rank score' each unit according to it's relation

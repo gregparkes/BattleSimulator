@@ -34,7 +34,7 @@ passed to the functions.
 import numpy as np
 from numba import njit
 
-from . import jitcode
+from . import _jitcode
 
 
 def get_function_names():
@@ -82,7 +82,7 @@ def nearest(pos, hp, enemies, allies, i):
     """
     if enemies.shape[0] > 0:
         # compute distances/magnitudes
-        distances = jitcode.euclidean_distance(pos[i] - pos[enemies])
+        distances = _jitcode.euclidean_distance(pos[i] - pos[enemies])
         return enemies[np.argmin(distances)]
     else:
         return -1
@@ -106,8 +106,8 @@ def close_weak(pos, hp, enemies, allies, i, wtc_ratio=0.7):
     if enemies.shape[0] > 0:
         return enemies[
                 np.argmin(
-                        (jitcode.remove_bias(hp[enemies]) * (1. - wtc_ratio)) + \
-                        (jitcode.remove_bias(jitcode.euclidean_distance(pos[i] - pos[enemies])) * wtc_ratio)
+                    (_jitcode.remove_bias(hp[enemies]) * (1. - wtc_ratio)) + \
+                    (_jitcode.remove_bias(_jitcode.euclidean_distance(pos[i] - pos[enemies])) * wtc_ratio)
                 )
             ]
     else:
@@ -161,13 +161,13 @@ def global_nearest(pos, hp, team, group, group_i):
     selector = (group == group_i)
     t = np.unique(team[selector])[0]
     # calculate distance matrix, with offset to ignore diagonal, with random noise
-    D = jitcode.distance_matrix(pos)
+    D = _jitcode.distance_matrix(pos)
     D += np.eye(D.shape[0])*np.max(D) + np.random.rand(D.shape[0], D.shape[0]) / 4.
     # get unit IDs that are not equal to this team for enemies.
     id_not, = np.where(team != t)
     id_is, = np.where(selector)
     # use distance matrix and ids to select sub groups to find argmin
-    j = jitcode.matrix_argmin(D[id_is, :][:, id_not])
+    j = _jitcode.matrix_argmin(D[id_is, :][:, id_not])
     return j
 
 
@@ -178,16 +178,16 @@ def global_close_weak(pos, hp, team, group, group_i, wtc_ratio=0.7):
     t = np.unique(team[selector])[0]
 
     # calculate distance matrix, with offset to ignore diagonal, with random noise
-    D = jitcode.distance_matrix(pos)
+    D = _jitcode.distance_matrix(pos)
     D += np.eye(D.shape[0])*np.max(D) + np.random.rand(D.shape[0], D.shape[0]) / 4.
 
     # return the enemy that is closest and lowest HP
-    hp_adj = jitcode.remove_bias(hp) * (1. - wtc_ratio)
-    dist_adj = jitcode.remove_bias(D) * wtc_ratio
+    hp_adj = _jitcode.remove_bias(hp) * (1. - wtc_ratio)
+    dist_adj = _jitcode.remove_bias(D) * wtc_ratio
 
     # get unit IDs that are not equal to this team for enemies.
     id_not, = np.where(team != t)
     id_is, = np.where(selector)
     # use distance matrix and ids to select sub groups to find argmin
-    j = jitcode.matrix_argmin(dist_adj[id_is, :][:, id_not] + hp_adj[id_not])
+    j = _jitcode.matrix_argmin(dist_adj[id_is, :][:, id_not] + hp_adj[id_not])
     return j
