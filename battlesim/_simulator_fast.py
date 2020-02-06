@@ -18,7 +18,8 @@ __all__ = ["simulate_battle"]
 
 
 def frame_columns():
-    return ["army", "allegiance", "alive", "armor", "hp", "x", "y", "dir_x", "dir_y"]
+    """Column names w.r.t frame dataframe."""
+    return "army", "allegiance", "alive", "armor", "hp", "x", "y", "dir_x", "dir_y"
 
 
 def _copy_frame(Frames, M, i):
@@ -48,10 +49,10 @@ def _convert_to_pandas(frames):
         "alive": frames["hp"][s] > 0,
         "hp": np.clip(frames["hp"][s], a_min=0., a_max=None),
         "armor": np.clip(frames["armor"][s], a_min=0, a_max=None),
-        "x": frames["pos"][s][:,0],
-        "y": frames["pos"][s][:,1],
-        "dir_x": frames["dpos"][s][:,0],
-        "dir_y": frames["dpos"][s][:,1]
+        "x": frames["pos"][s][:, 0],
+        "y": frames["pos"][s][:, 1],
+        "dir_x": frames["dpos"][s][:, 0],
+        "dir_y": frames["dpos"][s][:, 1]
     }, index=frames["frame"][s]) for s in range(steps)])
     DF.index.name = "frame"
     return DF
@@ -106,11 +107,11 @@ def simulate_battle(M,
 
     if ret_frames:
         frames = np.zeros(
-                (max_step+1, M.shape[0]),
-                dtype=[("frame", np.int64, 1), ("pos", np.float32, 2), ("target", np.int32, 1),
-                       ("hp", np.float32, 1), ("armor", np.float32, 1), ("dpos", np.float32, 2), ("team", np.uint8, 1),
-                       ("utype", np.uint8, 1)
-                ]
+            (max_step + 1, M.shape[0]),
+            dtype=[("frame", np.int64, 1), ("pos", np.float32, 2), ("target", np.int32, 1),
+                   ("hp", np.float32, 1), ("armor", np.float32, 1), ("dpos", np.float32, 2), ("team", np.uint8, 1),
+                   ("utype", np.uint8, 1)
+                   ]
         )
 
     while (t < max_step) and running:
@@ -129,8 +130,8 @@ def simulate_battle(M,
         dir_vec = M["pos"][M["target"]] - M["pos"]
         dists = _jitcode.euclidean_distance(dir_vec)
         """precompute enemy and ally target listings"""
-        enemy_targets = [np.argwhere((M["hp"]>0) & (M["team"]!=T)).flatten() for T in teams]
-        ally_targets = [np.argwhere((M["hp"]>0) & (M["team"]==T)).flatten() for T in teams]
+        enemy_targets = [np.argwhere((M["hp"] > 0) & (M["team"] != T)).flatten() for T in teams]
+        ally_targets = [np.argwhere((M["hp"] > 0) & (M["team"] == T)).flatten() for T in teams]
         """# pre-compute the 'luck' of each unit with random numbers."""
         round_luck = np.random.rand(M.shape[0], 2)
 
@@ -140,12 +141,12 @@ def simulate_battle(M,
                 dm = decision_map[M["group"][i]]
                 # AI-based decision for attack/defend.
                 running = (dm(
-                     # variables
-                     M["pos"], M["speed"], M["range"], M["acc"], M["dodge"],
-                     M["target"], M["dmg"], M["hp"], M["armor"], round_luck, dists, dir_vec,
-                     M["team"], target_map[M["group"][i]],
-                     enemy_targets[M["team"][i]], ally_targets[M["team"][i]],
-                     Z_m, X_t_ind, Y_t_ind, i
+                    # variables
+                    M["pos"], M["speed"], M["range"], M["acc"], M["dodge"],
+                    M["target"], M["dmg"], M["hp"], M["armor"], round_luck, dists, dir_vec,
+                    M["team"], target_map[M["group"][i]],
+                    enemy_targets[M["team"][i]], ally_targets[M["team"][i]],
+                    Z_m, X_t_ind, Y_t_ind, i
                 ))
 
         t += 1
@@ -154,4 +155,4 @@ def simulate_battle(M,
         _copy_frame(frames, M, t)
         return _convert_to_pandas(frames[:t])
     else:
-        return np.asarray([np.argwhere((M["hp"]>0) & (M["team"]==T)).flatten().shape[0] for T in teams])
+        return np.asarray([np.argwhere((M["hp"] > 0) & (M["team"] == T)).flatten().shape[0] for T in teams])

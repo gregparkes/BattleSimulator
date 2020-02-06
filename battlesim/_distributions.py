@@ -8,7 +8,6 @@ Created on Mon Jul  8 12:13:53 2019
 import numpy as np
 from scipy import stats
 
-
 __all__ = ["Distribution"]
 
 
@@ -56,7 +55,6 @@ class Distribution(object):
         # get mapper ready
         self._dist_func = self.options_["funcs"][self._option_i]
 
-
     def _get_distribution_name_from_args(self, *args):
         if args[0] in self.options_["names"]:
             self.dist_ = args[0]
@@ -65,7 +63,6 @@ class Distribution(object):
         else:
             raise ValueError("argument {} not found in options {}".format(args[0], self.options_["names"]))
         self._option_i = self.options_["names"].index(self.dist_)
-
 
     def _get_distribution_name_from_kwargs(self, **kws):
         # get the name
@@ -90,11 +87,10 @@ class Distribution(object):
             self.dist_ = "norm"
             self._option_i = 3
 
-
     def _from_dict(self, **kws):
         # arguments accepted
-        dist_args = ["mean","var","loc","scale","sd","std","a","b","df"]
-        dist_map = dict(zip(dist_args, ["loc","scale","loc","scale","scale","scale","a","b","df"]))
+        dist_args = ["mean", "var", "loc", "scale", "sd", "std", "a", "b", "df"]
+        dist_map = dict(zip(dist_args, ["loc", "scale", "loc", "scale", "scale", "scale", "a", "b", "df"]))
         d_xk, d_yk = {}, {}
 
         # iterate over them all
@@ -117,7 +113,8 @@ class Distribution(object):
             if keyword in dist_args:
                 # test argument
                 if not isinstance(argument, (float, int, np.int, np.float, np.int64, np.float64)):
-                    raise TypeError("argument '{}' must be of type [float, int] for distribution parameter".format(argument))
+                    raise TypeError(
+                        "argument '{}' must be of type [float, int] for distribution parameter".format(argument))
 
                 k_m = dist_map[keyword]
                 if dim == "x":
@@ -140,9 +137,9 @@ class Distribution(object):
         self.x_param_ = d_xk
         self.y_param_ = d_yk
 
-
     @property
     def x_param_(self):
+        """Returns all the x-parameters."""
         return self._x_param
 
     @x_param_.setter
@@ -160,6 +157,7 @@ class Distribution(object):
 
     @property
     def y_param_(self):
+        """Returns all of the y-parameters."""
         return self._y_param
 
     @y_param_.setter
@@ -175,13 +173,12 @@ class Distribution(object):
                                  .format(keyword, self.dist_, self._options["acc_params"][self._option_i]))
         self._y_param = y
 
-
     def _get_dist_names(self):
         return self.options_["names"]
 
-
     @property
     def dist_(self):
+        """The distribution type."""
         return self._dist
 
     @dist_.setter
@@ -192,40 +189,40 @@ class Distribution(object):
             raise ValueError("distribution '{}' not found in {}".format(dist, self.options_["names"]))
         self._dist = dist
 
-
     def _check_parameters(self, params):
         for p, v in params.items():
             if p not in self.options_["acc_params"][self._option_i]:
-                raise ValueError("parameter '{}' not found in {}".format(p, self.options_["acc_params"][self._option_i]))
+                raise ValueError(
+                    "parameter '{}' not found in {}".format(p, self.options_["acc_params"][self._option_i]))
             if not isinstance(v, (float, np.float, np.float64, int, np.int, np.int64)):
                 raise TypeError("parameter item must be of type [int, float]")
 
-
     @property
     def mean_(self):
+        """The location parameters."""
         return np.asarray([self.x_param_["loc"], self.y_param_["loc"]])
-
 
     @property
     def options_(self):
+        """A clunky dictionary with the total options."""
         return {
             "names": ["uniform", 'gamma', 'beta', 'norm', 'laplace', 'exp', 'chi'],
             "funcs": [stats.uniform, stats.gamma, stats.beta, stats.norm, stats.laplace,
-                          stats.expon, stats.chi],
+                      stats.expon, stats.chi],
             # a dictionary to map alternative names used.
-            "name_maps": {"gaussian":"norm", "normal":"norm", "expon":"exp", "unif":"uniform"},
+            "name_maps": {"gaussian": "norm", "normal": "norm", "expon": "exp", "unif": "uniform"},
             # default params
             "def_params": [
-                {'loc': 0., 'scale': 1.}, {"a": 2., "loc": 0., "scale":1.}, {"a": .5, "b": .5, "loc":0., "scale":1.},
-                {"loc": 0., "scale": 1.}, {"loc":0., "scale":1.}, {"loc":0., "scale":1.}, {"df": 1, "loc":0., "scale":1.}
+                {'loc': 0., 'scale': 1.}, {"a": 2., "loc": 0., "scale": 1.}, {"a": .5, "b": .5, "loc": 0., "scale": 1.},
+                {"loc": 0., "scale": 1.}, {"loc": 0., "scale": 1.}, {"loc": 0., "scale": 1.},
+                {"df": 1, "loc": 0., "scale": 1.}
             ],
             # accepted params
-            "acc_params": [("loc", "scale"), ("a", "loc","scale"),
-                ("a", "b", "loc", "scale"), ("loc","scale"), ("loc", "scale"),
-                ("loc","scale"), ("df", "loc", "scale")
-            ]
+            "acc_params": [("loc", "scale"), ("a", "loc", "scale"),
+                           ("a", "b", "loc", "scale"), ("loc", "scale"), ("loc", "scale"),
+                           ("loc", "scale"), ("df", "loc", "scale")
+                           ]
         }
-
 
     def setx(self, **x):
         """
@@ -235,7 +232,6 @@ class Distribution(object):
         self.x_param_ = x
         return self
 
-
     def sety(self, **y):
         """
         Set the y parameter if need be.
@@ -243,7 +239,6 @@ class Distribution(object):
         self._check_parameters(y)
         self.y_param_ = y
         return self
-
 
     def sample(self, size):
         """
@@ -263,7 +258,6 @@ class Distribution(object):
         S[:, 0] = self._dist_func(**self.x_param_).rvs(size=size)
         S[:, 1] = self._dist_func(**self.y_param_).rvs(size=size)
         return S
-
 
     def __repr__(self):
         return "{}: x={}, y={}".format(self.dist_, self.x_param_, self.y_param_)

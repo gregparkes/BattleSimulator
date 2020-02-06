@@ -48,7 +48,7 @@ class Battle(object):
         """
         # assign with checks
         self.db_ = db
-
+        self._D = []
         self._M = None
         self._sim = None
         self.db_.index = self.db_.index.str.lower()
@@ -57,7 +57,7 @@ class Battle(object):
         # create internal dictionary called 'army group' or ag
         self._ag = {}
 
-    ####################### HIDDEN FUNCTIONS ##############################
+    """####################### HIDDEN FUNCTIONS ##############################"""
 
     def _dataset(self, n):
         return np.zeros(n, dtype=[
@@ -147,7 +147,7 @@ class Battle(object):
                 self.M_["pos"], self.M_["hp"], self.M_["team"], self.M_["group"], group
             )
 
-    """--------------------------------- PUBLIC ATTRIBUTES AND ATTR METHODS ------------------------------------------------"""
+    """---------------------- PUBLIC ATTRIBUTES AND ATTR METHODS ----------------------------------------"""
 
     @property
     def composition_(self):
@@ -249,9 +249,9 @@ class Battle(object):
         self._is_instantiated()
         self._D = []
         if isinstance(d, (str, Distribution)):
-            self._D = [Distribution(d) for i in range(self.n_armies_)]
+            self._D = [Distribution(d) for _ in range(self.n_armies_)]
         elif isinstance(d, dict):
-            self._D = [Distribution(**d) for i in range(self.n_armies_)]
+            self._D = [Distribution(**d) for _ in range(self.n_armies_)]
         elif isinstance(d, (list, tuple)):
             for dist in d:
                 if isinstance(dist, (str, Distribution)):
@@ -264,7 +264,7 @@ class Battle(object):
     @property
     def allegiances_(self):
         """The list of allegiances."""
-        return self.db_[("Allegiance", "allegiance_int")].set_index("allegiance_int").drop_duplicates().squeeze()
+        return self.db_[["Allegiance", "allegiance_int"]].set_index("allegiance_int").drop_duplicates().squeeze()
 
     @property
     def init_ai_(self):

@@ -20,11 +20,11 @@ __all__ = ["quiver_fight"]
 
 
 def _loop_colors():
-    return ["red", "blue", "green", "orange", "purple", "brown", "black",
-            "cyan", "yellow"]
+    return ("red", "blue", "green", "orange", "purple", "brown", "black",
+            "cyan", "yellow")
 
 
-def quiver_fight(Frames,
+def quiver_fight(frames,
                  terrain=None,
                  allegiance_label={},
                  allegiance_color={},
@@ -42,7 +42,7 @@ def quiver_fight(Frames,
 
     Parameters
     -------
-    Frames : pd.DataFrame
+    frames : pd.DataFrame
         The dataframe with each frame step to animate
         Columns included must be: 'x', 'y', 'dir_x', 'dir_y', 'allegiance', 'frame' and 'alive'
     terrain : bsm.Terrain object
@@ -59,14 +59,15 @@ def quiver_fight(Frames,
     anim : matplotlib.pyplot.animation
         object to animate then from.
     """
-    check_columns(Frames, frame_columns())
+    check_columns(frames, frame_columns())
 
     # set plt.context
-    plt.rcParams["animation.html"] = "html5"
+    plt.rcParams["animation.html"] = "jshtml"
+    # plt.rcParams['animation.writer'] = 'pillow'
     # dataframe
-    N_frames = Frames.index.unique().shape[0]
+    N_frames = frames.index.unique().shape[0]
     # create plot
-    fig = plt.figure(figsize=(8,6))
+    fig = plt.figure(figsize=(8, 6))
     ax = fig.add_subplot(111)
     # plot the terrain underneath
     terrain.plot(ax, alpha=.2)
@@ -76,7 +77,7 @@ def quiver_fight(Frames,
     ax.get_yaxis().set_visible(False)
 
     # use the numerical allegiance.
-    allegiances = Frames["allegiance"].unique()
+    allegiances = frames["allegiance"].unique()
     # create defaults if the dictionary size does not match the allegiance flags
     if len(allegiance_label) != allegiances.shape[0]:
         allegiance_label = dict(zip(allegiances.tolist(),
@@ -85,7 +86,7 @@ def quiver_fight(Frames,
         allegiance_color = dict(zip(allegiances.tolist(),
                                     slice_loop(_loop_colors(), allegiances.shape[0])))
     # unique units.
-    Uunits = Frames["army"].unique()
+    Uunits = frames["army"].unique()
     if len(quant_size_map) == 0:
         quant_size_map = {k: 1 for k in Uunits}
 
@@ -101,9 +102,9 @@ def quiver_fight(Frames,
     dead = []
 
     for a, un in combs:
-        f1 = Frames.loc[0].query("(allegiance==@a) & (army==@un) & alive")
+        f1 = frames.loc[0].query("(allegiance==@a) & (army==@un) & alive")
         team_alive = ax.quiver(f1.x, f1.y, f1.dir_x, f1.dir_y, color=allegiance_color[a], alpha=.5,
-                               scale=30*(quant_size_map[un]+1.), width=0.015, pivot="mid")
+                               scale=30 * (quant_size_map[un] + 1.), width=0.015, pivot="mid")
         qalive.append(team_alive)
 
         team_dead, = ax.plot([], [], 'x', color=allegiance_color[a], alpha=.2, markersize=5.)
@@ -112,30 +113,28 @@ def quiver_fight(Frames,
     # configure legend, extras.
     # set plot bounds
     xmin, xmax, ymin, ymax = terrain.bounds_
-    ax.set_xlim(xmin-.5, xmax+.5)
-    ax.set_ylim(ymin-.5, ymax+.5)
+    ax.set_xlim(xmin - .5, xmax + .5)
+    ax.set_ylim(ymin - .5, ymax + .5)
     # design custom legend
     custom_lines = [Line2D([0], [0], color=allegiance_color[a], lw=4) for a in allegiances]
     ax.legend(custom_lines, [allegiance_label[a] for a in allegiances], loc="upper right")
     fig.tight_layout()
     plt.close()
 
-
     # an initialisation function = to plot at the beginning.
-    def init():
-        for j, (a, un) in enumerate(combs):
-            new_alive = Frames.loc[0].query("(allegiance==@a) & (army==@un) & alive")
+    def _init():
+        for j, (_a, _un) in enumerate(combs):
+            new_alive = frames.loc[0].query("(allegiance==@_a) & (army==@_un) & alive")
             if len(new_alive) > 0:
                 qalive[j].set_UVC(new_alive["dir_x"], new_alive["dir_y"])
 
         return (*qalive, *dead)
 
-
     # animating the graph with step i
-    def animate(i):
-        for j, (a, un) in enumerate(combs):
-            new_alive = Frames.loc[i].query("(allegiance == @a) & (alive) & (army == @un)")
-            new_dead = Frames.loc[i].query("(allegiance == @a) & (not alive) & (army == @un)")
+    def _animate(i):
+        for j, (_a, _un) in enumerate(combs):
+            new_alive = frames.loc[i].query("(allegiance == @_a) & (alive) & (army == @_un)")
+            new_dead = frames.loc[i].query("(allegiance == @_a) & (not alive) & (army == @_un)")
             if len(new_alive) > 0:
                 qalive[j].set_offsets(np.vstack((new_alive["x"], new_alive["y"])).T)
                 qalive[j].set_UVC(new_alive["dir_x"], new_alive["dir_y"])
@@ -144,6 +143,5 @@ def quiver_fight(Frames,
 
         return (*qalive, *dead)
 
-
-    return animation.FuncAnimation(fig, animate, init_func=init,
+    return animation.FuncAnimation(fig, _animate, init_func=_init,
                                    interval=100, frames=N_frames, blit=True)

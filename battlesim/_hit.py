@@ -18,7 +18,6 @@ def basic_chance(accuracy, dodge, distances, i, j, global_penalty=15.):
     0 meaning no chance of hitting, 1 meaning perfect accuracy.
 
     Calculated as:
-
         chance = <accuracy> * (1 - <enemy dodge>) * (1 - <distance to enemy> / <global penalty>)
     """
     return accuracy[i] * (1. - dodge[j]) * (1. - distances[i] / global_penalty)

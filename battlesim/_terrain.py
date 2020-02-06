@@ -14,21 +14,27 @@ from scipy.stats import multivariate_normal
 from . import _jitcode
 from . import utils
 
+
 def get_tile_size(dim, res):
-    return int(np.abs(dim[0]-dim[1])//res), int(np.abs(dim[2]-dim[3])//res)
+    return int(np.abs(dim[0] - dim[1]) // res), int(np.abs(dim[2] - dim[3]) // res)
 
 
 def _generate_random_gauss(pos, dim, res=1.):
-    lm = lambda x, m, b: x*m+b
+    def lm(x, m, b):
+        """Linear model function."""
+        return x*m + b
     # fetch dimensions
     xmin, xmax, ymin, ymax = dim
-    Nx = (xmax - xmin); Ny = (ymax - ymin)
-    #scaling factors
+    Nx = (xmax - xmin)
+    Ny = (ymax - ymin)
+    # scaling factors
     # perfect scaling factor based on linear model y=mx + b
-    x_n = np.arange(0, 300, 5); y_n = np.linspace(5, 2, 60)
+    x_n = np.arange(0, 300, 5)
+    y_n = np.linspace(5, 2, 60)
     slope, intercept = np.polyfit(x_n, y_n, deg=1)
     # calculate scaling factor from formula
-    sx = Nx/lm(Nx,slope,intercept); sy = Ny/lm(Ny,slope,intercept)
+    sx = Nx / lm(Nx, slope, intercept)
+    sy = Ny / lm(Ny, slope, intercept)
     # define mean
     m = np.random.rand(2) * np.array([Nx, Ny]) + np.array([xmin, ymin])
     # Diagonal elements for covariance matrix
@@ -36,7 +42,7 @@ def _generate_random_gauss(pos, dim, res=1.):
     # random choice to invert cov
     R = np.random.choice([1., -1.])
     # construct covariance
-    C = np.array([[D[0]*sx, D[1]*R], [D[1]*R, D[0]*sy]])
+    C = np.array([[D[0] * sx, D[1] * R], [D[1] * R, D[0] * sy]])
     # use scipy.stats
     z = multivariate_normal(m, C).pdf(pos)
     return z
@@ -56,6 +62,7 @@ class Terrain(object):
     The terrain object is responsible not only for the type of background but the
     way in which it is displayed.
     """
+
     def __init__(self, dim=(0, 10, 0, 10), res=.1, form="contour"):
         """
         Defines a Terrain object.
@@ -81,7 +88,9 @@ class Terrain(object):
 
     @property
     def form_(self):
+        """Determines the appearance of the terrain. Either grid or contour."""
         return self._form
+
     @form_.setter
     def form_(self, f):
         if f not in [None, "grid", "contour"]:
@@ -90,7 +99,9 @@ class Terrain(object):
 
     @property
     def bounds_(self):
+        """Determines the dimensions by which to calculate Terrain."""
         return self._bounds
+
     @bounds_.setter
     def bounds_(self, dim):
         if not isinstance(dim, (list, tuple)):
@@ -101,12 +112,14 @@ class Terrain(object):
             raise AttributeError("xmax cannot be <= xmin")
         if dim[3] <= dim[2]:
             raise AttributeError("ymax cannot be <= ymin")
-        utils.is_ntuple(dim, *([(int, float, np.float, np.int, np.float32, np.int32)]*4))
+        utils.is_ntuple(dim, *([(int, float, np.float, np.int, np.float32, np.int32)] * 4))
         self._bounds = dim
 
     @property
     def res_(self):
+        """The resolution of the Terrain."""
         return self._res
+
     @res_.setter
     def res_(self, r):
         if not isinstance(r, (float, np.float)):
@@ -117,11 +130,10 @@ class Terrain(object):
 
     @property
     def Z_(self):
+        """The array defining height."""
         return self._Z
 
-
     ############################## HIDDEN FUNCTIONS ################################################
-
 
     def _m_size(self):
         return (int((self.bounds_[1] - self.bounds_[0]) / self.res_),
@@ -134,7 +146,8 @@ class Terrain(object):
 
         # create empty positions
         pos = np.empty(X.shape + (2,))
-        pos[:, :, 0] = X; pos[:, :, 1] = Y
+        pos[:, :, 0] = X;
+        pos[:, :, 1] = Y
 
         Z_cont = np.stack(([_generate_random_gauss(pos, self.bounds_, self.res_) for i in range(n_gauss)]), axis=2)
 
@@ -143,34 +156,33 @@ class Terrain(object):
         # scale between 0 and 1 and return
         return _jitcode.minmax(Z)
 
-
     def __repr__(self):
         return "Terrain(init={}, type='{}', dim={}, resolution={:0.3f})".format(
-                self.Z_ is not None, self.form_, self.bounds_, self.res_)
-
+            self.Z_ is not None, self.form_, self.bounds_, self.res_)
 
     ##################################### FUNCTIONS ##################################################
 
-
     def get_grid(self):
-        return np.mgrid[self.bounds_[0]:self.bounds_[1]:self.res_,
-                        self.bounds_[2]:self.bounds_[3]:self.res_]
-
+        """Returns the grid as an mgrid."""
+        return np.mgrid[self.bounds_[0]:self.bounds_[1]:self.res_, \
+               self.bounds_[2]:self.bounds_[3]:self.res_]
 
     def get_flat_grid(self):
+        """Produces a flat terrain grid."""
         X, Y = self.get_grid()
         # they are repeats, return single.
         return X[:, 0], Y[0, :]
-
 
     def generate(self, f=None, n_random=50):
         """
         Generates the terrain using a function.
 
         Parameters
-        -------
+        ----------
         f : function or None
             If None, uses 'random', else uses a map_function if ['grid', 'contour']
+        n_random : int, optional
+            The number of random gaussians to generate.
 
         Returns
         -------
@@ -187,8 +199,8 @@ class Terrain(object):
             raise TypeError("'f' must be a function or None")
         return self
 
-
     def plot(self, ax=None, **kwargs):
+        """Plots the terrain as a contour to visualize."""
         # given an axes, plot the terrain using the parameters given.
         if self.Z_ is None:
             raise ValueError("Terrain not instantiated, call generate()")
