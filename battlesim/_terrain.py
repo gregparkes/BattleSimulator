@@ -11,18 +11,24 @@ This can be fixed size or infinite if it follows some mathematical function.
 import numpy as np
 from matplotlib.pyplot import subplots
 from scipy.stats import multivariate_normal
+from typing import Optional, Tuple
+
 from . import _jitcode
 from . import utils
 
 
-def get_tile_size(dim, res):
+def get_tile_size(dim: Tuple[float, float, float, float],
+                  res: float):
+    """Returns the tile size of the resolution."""
     return int(np.abs(dim[0] - dim[1]) // res), int(np.abs(dim[2] - dim[3]) // res)
 
 
-def _generate_random_gauss(pos, dim, res=1.):
-    def lm(x, m, b):
+def _generate_random_gauss(pos: np.ndarray,
+                           dim: Tuple[float, float, float, float]):
+    def lm(x, sl, b):
         """Linear model function."""
-        return x*m + b
+        return x * sl + b
+
     # fetch dimensions
     xmin, xmax, ymin, ymax = dim
     Nx = (xmax - xmin)
@@ -31,10 +37,10 @@ def _generate_random_gauss(pos, dim, res=1.):
     # perfect scaling factor based on linear model y=mx + b
     x_n = np.arange(0, 300, 5)
     y_n = np.linspace(5, 2, 60)
-    slope, intercept = np.polyfit(x_n, y_n, deg=1)
+    coef = np.polyfit(x_n, y_n, deg=1)
     # calculate scaling factor from formula
-    sx = Nx / lm(Nx, slope, intercept)
-    sy = Ny / lm(Ny, slope, intercept)
+    sx = Nx / lm(Nx, coef[0], coef[1])
+    sy = Ny / lm(Ny, coef[0], coef[1])
     # define mean
     m = np.random.rand(2) * np.array([Nx, Ny]) + np.array([xmin, ymin])
     # Diagonal elements for covariance matrix
@@ -63,7 +69,10 @@ class Terrain(object):
     way in which it is displayed.
     """
 
-    def __init__(self, dim=(0, 10, 0, 10), res=.1, form="contour"):
+    def __init__(self,
+                 dim: Tuple[float, float, float, float] = (0., 10., 0., 10.),
+                 res: float = .1,
+                 form: Optional[str] = "contour"):
         """
         Defines a Terrain object.
 
@@ -92,7 +101,7 @@ class Terrain(object):
         return self._form
 
     @form_.setter
-    def form_(self, f):
+    def form_(self, f: Optional[str]):
         if f not in [None, "grid", "contour"]:
             raise AttributeError("'form' must be [None, grid, contour]")
         self._form = f
@@ -103,7 +112,7 @@ class Terrain(object):
         return self._bounds
 
     @bounds_.setter
-    def bounds_(self, dim):
+    def bounds_(self, dim: Tuple[float, float, float, float]):
         if not isinstance(dim, (list, tuple)):
             raise TypeError("'dim' must be of type [list, tuple]")
         if len(dim) != 4:
@@ -121,7 +130,7 @@ class Terrain(object):
         return self._res
 
     @res_.setter
-    def res_(self, r):
+    def res_(self, r: float):
         if not isinstance(r, (float, np.float)):
             raise TypeError("'res' must be of type [float]")
         if r < 1e-8:
@@ -133,23 +142,22 @@ class Terrain(object):
         """The array defining height."""
         return self._Z
 
-    ############################## HIDDEN FUNCTIONS ################################################
+    """############################## HIDDEN FUNCTIONS ################################################"""
 
     def _m_size(self):
         return (int((self.bounds_[1] - self.bounds_[0]) / self.res_),
                 int((self.bounds_[3] - self.bounds_[2]) / self.res_))
 
-    def _generate_random_terrain(self, n_gauss=100):
-        xmin, xmax, ymin, ymax = self.bounds_
+    def _generate_random_terrain(self, n_gauss: int = 100):
         # define meshgrid
         X, Y = self.get_grid()
 
         # create empty positions
         pos = np.empty(X.shape + (2,))
-        pos[:, :, 0] = X;
+        pos[:, :, 0] = X
         pos[:, :, 1] = Y
 
-        Z_cont = np.stack(([_generate_random_gauss(pos, self.bounds_, self.res_) for i in range(n_gauss)]), axis=2)
+        Z_cont = np.stack(([_generate_random_gauss(pos, self.bounds_) for _ in range(n_gauss)]), axis=2)
 
         # add probabilities
         Z = Z_cont.sum(axis=2)
@@ -160,12 +168,12 @@ class Terrain(object):
         return "Terrain(init={}, type='{}', dim={}, resolution={:0.3f})".format(
             self.Z_ is not None, self.form_, self.bounds_, self.res_)
 
-    ##################################### FUNCTIONS ##################################################
+    """##################################### FUNCTIONS ##################################################"""
 
     def get_grid(self):
         """Returns the grid as an mgrid."""
-        return np.mgrid[self.bounds_[0]:self.bounds_[1]:self.res_, \
-               self.bounds_[2]:self.bounds_[3]:self.res_]
+        return np.mgrid[self.bounds_[0]:self.bounds_[1]:self.res_,
+                        self.bounds_[2]:self.bounds_[3]:self.res_]
 
     def get_flat_grid(self):
         """Produces a flat terrain grid."""
@@ -173,7 +181,7 @@ class Terrain(object):
         # they are repeats, return single.
         return X[:, 0], Y[0, :]
 
-    def generate(self, f=None, n_random=50):
+    def generate(self, f=None, n_random: int = 50):
         """
         Generates the terrain using a function.
 
@@ -208,7 +216,6 @@ class Terrain(object):
             fig, ax = subplots(figsize=(8, 6))
 
         if self.form_ == "grid":
-            xmin, xmax, ymin, ymax = self.bounds_
             ax.imshow(self.Z_, aspect="auto", cmap="binary", extent=self.bounds_, **kwargs)
         elif self.form_ == "contour" or self.form_ == "random":
             X, Y = self.get_grid()

@@ -111,7 +111,7 @@ def simulate_battle(M,
             dtype=[("frame", np.int64, 1), ("pos", np.float32, 2), ("target", np.int32, 1),
                    ("hp", np.float32, 1), ("armor", np.float32, 1), ("dpos", np.float32, 2), ("team", np.uint8, 1),
                    ("utype", np.uint8, 1)
-                   ]
+            ]
         )
 
     while (t < max_step) and running:

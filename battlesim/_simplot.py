@@ -19,7 +19,8 @@ from matplotlib.lines import Line2D
 __all__ = ["quiver_fight"]
 
 
-def _loop_colors():
+def loop_colors():
+    """Provides a looping list of matplotlib colors."""
     return ("red", "blue", "green", "orange", "purple", "brown", "black",
             "cyan", "yellow")
 

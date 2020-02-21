@@ -40,8 +40,10 @@ from . import _jitcode
 def get_function_names():
     return ["random", "nearest", "close_weak"]
 
+
 def get_functions():
     return [random, nearest, close_weak]
+
 
 def get_map_functions():
     return dict(zip(get_function_names(), get_functions()))
@@ -50,8 +52,10 @@ def get_map_functions():
 def get_global_function_names():
     return ["global_" + n for n in get_function_names()]
 
+
 def get_global_functions():
     return [global_random, global_nearest, global_close_weak]
+
 
 def get_global_map_functions():
     return dict(zip(get_global_function_names(), get_global_functions()))
@@ -105,11 +109,11 @@ def close_weak(pos, hp, enemies, allies, i, wtc_ratio=0.7):
     """
     if enemies.shape[0] > 0:
         return enemies[
-                np.argmin(
-                    (_jitcode.remove_bias(hp[enemies]) * (1. - wtc_ratio)) + \
-                    (_jitcode.remove_bias(_jitcode.euclidean_distance(pos[i] - pos[enemies])) * wtc_ratio)
-                )
-            ]
+            np.argmin(
+                (_jitcode.remove_bias(hp[enemies]) * (1. - wtc_ratio)) + \
+                (_jitcode.remove_bias(_jitcode.euclidean_distance(pos[i] - pos[enemies])) * wtc_ratio)
+            )
+        ]
     else:
         return -1
 
@@ -162,7 +166,7 @@ def global_nearest(pos, hp, team, group, group_i):
     t = np.unique(team[selector])[0]
     # calculate distance matrix, with offset to ignore diagonal, with random noise
     D = _jitcode.distance_matrix(pos)
-    D += np.eye(D.shape[0])*np.max(D) + np.random.rand(D.shape[0], D.shape[0]) / 4.
+    D += np.eye(D.shape[0]) * np.max(D) + np.random.rand(D.shape[0], D.shape[0]) / 4.
     # get unit IDs that are not equal to this team for enemies.
     id_not, = np.where(team != t)
     id_is, = np.where(selector)
@@ -179,7 +183,7 @@ def global_close_weak(pos, hp, team, group, group_i, wtc_ratio=0.7):
 
     # calculate distance matrix, with offset to ignore diagonal, with random noise
     D = _jitcode.distance_matrix(pos)
-    D += np.eye(D.shape[0])*np.max(D) + np.random.rand(D.shape[0], D.shape[0]) / 4.
+    D += np.eye(D.shape[0]) * np.max(D) + np.random.rand(D.shape[0], D.shape[0]) / 4.
 
     # return the enemy that is closest and lowest HP
     hp_adj = _jitcode.remove_bias(hp) * (1. - wtc_ratio)

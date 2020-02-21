@@ -18,7 +18,7 @@ class Distribution(object):
     in a given Battle.
     """
 
-    def __init__(self, *args, **parameters):
+    def __init__(self, *args: str, **parameters):
         """
         Initialise the continuous distribution object with a name mapping to a
         scipy.stats distribution.

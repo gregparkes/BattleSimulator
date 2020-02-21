@@ -13,14 +13,17 @@ from . import _damage
 
 
 def get_function_names():
-    return ["aggressive", "hit_and_run"]
+    """Returns the function names."""
+    return "aggressive", "hit_and_run"
 
 
 def get_functions():
-    return [aggressive, hit_and_run]
+    """Returns the functions themselves."""
+    return aggressive, hit_and_run
 
 
 def get_map_functions():
+    """Maps the function names to the functions."""
     return dict(zip(get_function_names(), get_functions()))
 
 

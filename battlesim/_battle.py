@@ -7,6 +7,7 @@ Responsible for creating a Battle object.
 import numpy as np
 import pandas as pd
 import warnings
+from typing import Dict, Union, Tuple, Callable, List
 
 from . import utils
 from . import _target
@@ -29,9 +30,11 @@ class Battle(object):
     flow.
     """
 
-    ###################### INIT FUNCTION #####################################
+    """###################### INIT FUNCTION #####################################"""
 
-    def __init__(self, db=default_db(), bounds=(0, 10, 0, 10)):
+    def __init__(self,
+                 db: Union[str, Dict, pd.DataFrame] = default_db(),
+                 bounds: Tuple[float, float, float, float] = (0., 10., 0., 10.)):
         """
         Instantiate this object with a filepath leading to
 
@@ -59,7 +62,7 @@ class Battle(object):
 
     """####################### HIDDEN FUNCTIONS ##############################"""
 
-    def _dataset(self, n):
+    def _dataset(self, n: int):
         return np.zeros(n, dtype=[
             ("team", np.uint8, 1), ("utype", np.uint8, 1), ("pos", np.float32, 2), ("hp", np.float32, 1),
             ("armor", np.float32, 1), ("range", np.float32, 1), ("speed", np.float32, 1), ("acc", np.float32, 1),
@@ -95,10 +98,9 @@ class Battle(object):
         army_to_fname = dict(zip(r_armies, t))
         return dict(zip(r_armies, [mm[army_to_fname[f]] for f in army_to_fname]))
 
-    def _plot_simulation(self, func, cols):
+    def _plot_simulation(self, func: Callable):
         labels = self.allegiances_.to_dict()
-        if len(cols) <= 0:
-            cols = utils.slice_loop(_simplot._loop_colors(), len(self.allegiances_))
+        cols = utils.slice_loop(_simplot.loop_colors(), len(self.allegiances_))
         # quantify size by value
         qscore = _unit_quant.rank_score(self.db_).reset_index(drop=True).to_dict()
 
@@ -120,7 +122,7 @@ class Battle(object):
         ymin, ymax = self.M_["pos"][:, 1].min(), self.M_["pos"][:, 1].max()
         return np.floor(xmin), np.ceil(xmax), np.floor(ymin), np.ceil(ymax)
 
-    def _check_bounds_to_M(self, bounds):
+    def _check_bounds_to_M(self, bounds: Tuple[float, float, float, float]):
         xmin, xmax, ymin, ymax = self._get_bounds_from_M()
         if bounds[0] > xmin:
             raise ValueError("xmin bounds value: {} > unit bound {}".format(bounds[0], xmin))
@@ -140,8 +142,7 @@ class Battle(object):
 
         f_dict = _target.get_global_map_functions()
 
-        for group, (u, n), (start, end), func, team in zip(range(self.n_armies_), self.army_set_, self._segments,
-                                                           self.init_ai_, self._teams):
+        for group, (start, end), func, team in zip(range(self.n_armies_), self._segments, self.init_ai_, self._teams):
             mod_func = "global_" + func
             self.M_["target"][start:end] = f_dict[mod_func](
                 self.M_["pos"], self.M_["hp"], self.M_["team"], self.M_["group"], group
@@ -150,7 +151,7 @@ class Battle(object):
     """---------------------- PUBLIC ATTRIBUTES AND ATTR METHODS ----------------------------------------"""
 
     @property
-    def composition_(self):
+    def composition_(self) -> pd.DataFrame:
         """Determines the composition of the Battle."""
         self._is_instantiated()
         d = {"unit": [name for name, _ in self.army_set_],
@@ -171,12 +172,12 @@ class Battle(object):
         return pd.DataFrame(d).groupby("allegiance")["n"].sum()
 
     @property
-    def bounds_(self):
+    def bounds_(self) -> Tuple[float, float, float, float]:
         """Determine the bounds of the fight using the Terrain."""
         return self.T_.bounds_
 
     @bounds_.setter
-    def bounds_(self, b):
+    def bounds_(self, b: Tuple[float, float, float, float]):
         if self.M_ is None:
             warnings.warn("bounds {} set before units are initialised - some may be out-of-bounds".format(b),
                           UserWarning)
@@ -186,7 +187,7 @@ class Battle(object):
             self.T_.bounds_ = b
 
     @property
-    def M_(self):
+    def M_(self) -> np.ndarray:
         """The raw data set underlying."""
         return self._M
 
@@ -196,7 +197,7 @@ class Battle(object):
         return self._sim
 
     @property
-    def db_(self):
+    def db_(self) -> pd.DataFrame:
         """The datafiles storing information on each unit."""
         return self._db
 
@@ -216,7 +217,7 @@ class Battle(object):
             raise ValueError("'db' must be of type [str, dict, pd.DataFrame], not {}".format(type(db_n)))
 
     @property
-    def T_(self):
+    def T_(self) -> Terrain:
         """Attribute to the Terrain object."""
         return self._T
 
@@ -224,16 +225,16 @@ class Battle(object):
     def army_set_(self):
         """A list of unit rosters and counts."""
         self._is_instantiated()
-        return list(zip(self._unit_roster, self._unit_n))
+        return tuple(zip(self._unit_roster, self._unit_n))
 
     @property
-    def n_armies_(self):
+    def n_armies_(self) -> int:
         """The number of army types."""
         self._is_instantiated()
         return len(self._unit_roster)
 
     @property
-    def N_(self):
+    def N_(self) -> int:
         """The total number of units."""
         self._is_instantiated()
         return sum(self._unit_n)
@@ -296,17 +297,17 @@ class Battle(object):
     ################### HIDDEN ATTRIBUTE #################################
 
     @property
-    def _segments(self):
+    def _segments(self) -> Tuple[str, int]:
         return utils.get_segments(self.army_set_)
 
     @property
-    def _teams(self):
+    def _teams(self) -> np.ndarray:
         self._is_instantiated()
         return np.asarray([self.db_.loc[u, "allegiance_int"] for u in self._unit_roster])
 
     """--------------------------------- PUBLIC FUNCTIONS ------------------------------------------------"""
 
-    def create_army(self, army_set):
+    def create_army(self, army_set: Tuple[str, int]):
         """
         Armies are groupings of (<'Unit Type'>, <number of units>). You can
         create one or more of these.
@@ -402,7 +403,7 @@ class Battle(object):
         self.bounds_ = self._get_bounds_from_M()
         return self
 
-    def apply_terrain(self, t=None, res=.1):
+    def apply_terrain(self, t=None, res: float = .1):
         """
         Applies a Z-plane to the map that the Battle is occuring on by creating
         a bsm.Terrain object.
@@ -433,7 +434,7 @@ class Battle(object):
         else:
             raise ValueError("'t' must be [grid, contour, None]")
 
-    def set_initial_ai(self, func_names):
+    def set_initial_ai(self, func_names: Union[str, List[str]]):
         """
         Set the AI decisions for choosing a target initially. Pass a function name from bsm.ai
         for each 'army set'.
@@ -451,7 +452,7 @@ class Battle(object):
         self.init_ai_ = func_names
         return self
 
-    def set_rolling_ai(self, func_names):
+    def set_rolling_ai(self, func_names: Union[str, List[str]]):
         """
         Set the AI decisions for choosing a target rolling through the simulation.
         Pass a function name from bsm.ai for each 'army set'.
@@ -471,7 +472,7 @@ class Battle(object):
         self._rolling_map = self._determine_ai_mapping(self.rolling_ai_)
         return self
 
-    def set_decision_ai(self, decision):
+    def set_decision_ai(self, decision: Union[str, List[str]]):
         """
         Sets the over-arching AI choices for each 'army group'. By default they
         choose an 'aggressive' stance.
@@ -495,7 +496,7 @@ class Battle(object):
         self._decision_map = self._determine_ai_mapping(self.decision_ai_, pkg=_ai)
         return self
 
-    def set_bounds(self, bounds):
+    def set_bounds(self, bounds: Tuple[float, float, float, float]):
         """
         Sets the boundaries of the Battle. If not initialised, this is OK but may
         produce errors down-the-line.
@@ -538,7 +539,7 @@ class Battle(object):
                                **kwargs)
         return self.sim_
 
-    def simulate_k(self, k=10, **kwargs):
+    def simulate_k(self, k: int = 10, **kwargs):
         """
         Runs the 'simulate_battle' algorithm 'k' times. Creates and passes a copy
         to simulate.
@@ -586,9 +587,8 @@ class Battle(object):
     """ ------------ CONVENIENCE PLOTTING FUNCTIONS ---------------------- """
 
     def sim_jupyter(self,
-                    func=_simplot.quiver_fight,
-                    create_html=False,
-                    cols={}):
+                    func: Callable = _simplot.quiver_fight,
+                    create_html: bool = False):
         """
         This convenience method uses any saved 'sim_' object to generate the code
         to output to a Jupyter Notebook. Once must simply then do:
@@ -599,12 +599,10 @@ class Battle(object):
 
         Parameters
         --------
-        func : function
+        func : function, optional
             The plot function to call, by default is bsm.quiver_fight()
-        create_html : bool
+        create_html : bool, optional
             Decides whether to return the object directly, or create HTML to then use HTML()
-        cols : dict
-            colour dictionary to identify each allegiance with.
 
         Returns
         -------
@@ -613,7 +611,7 @@ class Battle(object):
         """
         self._is_simulated()
         # call plotting function - with
-        Q = self._plot_simulation(func, cols)
+        Q = self._plot_simulation(func)
 
         if create_html:
             return Q.to_jshtml()
@@ -621,23 +619,20 @@ class Battle(object):
             return Q
 
     def sim_export(self,
-                   filename="example_sim.gif",
-                   func=_simplot.quiver_fight,
-                   cols={},
-                   writer="pillow"):
+                   filename: str = "example_sim.gif",
+                   func: Callable = _simplot.quiver_fight,
+                   writer: str = "pillow"):
         """
         This convenience method uses any saved 'sim_' object to generate the code
         to export into a gif file.
 
         Parameters
         -------
-        filename : str
+        filename : str, optional
             The name of the file to output. Must end in .gif
-        func : function
+        func : function, optional
             The plot function to call, by default is bsm.quiver_fight()
-        cols : dict
-            colour dictionary to identify each allegiance with.
-        writer : str
+        writer : str, optional
             The type of writer to pass to funcanimation.save(). This might
             need to be tweaked on your system.
             Accepts ['imagemagick', 'ffmpeg', 'pillow']
@@ -652,7 +647,7 @@ class Battle(object):
             filename.append(".gif")
 
         # call simulation
-        Q = self._plot_simulation(func, cols)
+        Q = self._plot_simulation(func)
 
         # save
         Q.save(filename, writer=writer)
@@ -660,7 +655,7 @@ class Battle(object):
 
     """ ---------------------- MISC --------------------------------------- """
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         if self.M_ is None:
             return "bsm.Battle(init=False)"
         elif self.sim_ is None:

@@ -12,6 +12,7 @@ import pandas as pd
 import functools
 import warnings
 import time
+from typing import Tuple, Iterable
 
 
 def check_columns(df, list_of_columns):
@@ -29,13 +30,13 @@ def check_list_type(L, t):
     return True
 
 
-def colorwheel():
+def colorwheel() -> Tuple:
     """All of the supported named-types in Matplotlib."""
     return ("red", "blue", "green", "orange", "purple", "brown", "black",
             "cyan", "yellow")
 
 
-def check_in_list(L, sl):
+def check_in_list(L, sl: Iterable):
     """
     L is the reference list, sl is the 'sub list'
     """
@@ -152,7 +153,7 @@ def is_ntuple(L, *types):
         raise TypeError("'L' must be of type [list, tuple]")
 
 
-def get_segments(army_set):
+def get_segments(army_set: Tuple[str, int]):
     """
     Where army_set[i][0] is the unit type, army_set[i][1] is the N, (number of units)
     """
