@@ -11,7 +11,7 @@ from typing import Dict, Union, Tuple, Callable, List
 
 from . import utils
 from . import _target
-from . import _simplot
+from .plot import quiver_fight
 from . import _ai
 from . import _unit_quant
 from .__defaults import default_db
@@ -587,7 +587,7 @@ class Battle(object):
     """ ------------ CONVENIENCE PLOTTING FUNCTIONS ---------------------- """
 
     def sim_jupyter(self,
-                    func: Callable = _simplot.quiver_fight,
+                    func: Callable = quiver_fight,
                     create_html: bool = False):
         """
         This convenience method uses any saved 'sim_' object to generate the code
@@ -620,7 +620,7 @@ class Battle(object):
 
     def sim_export(self,
                    filename: str = "example_sim.gif",
-                   func: Callable = _simplot.quiver_fight,
+                   func: Callable = quiver_fight,
                    writer: str = "pillow"):
         """
         This convenience method uses any saved 'sim_' object to generate the code

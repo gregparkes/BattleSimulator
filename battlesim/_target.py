@@ -110,8 +110,8 @@ def close_weak(pos, hp, enemies, allies, i, wtc_ratio=0.7):
     if enemies.shape[0] > 0:
         return enemies[
             np.argmin(
-                (_jitcode.remove_bias(hp[enemies]) * (1. - wtc_ratio)) + \
-                (_jitcode.remove_bias(_jitcode.euclidean_distance(pos[i] - pos[enemies])) * wtc_ratio)
+                (_jitcode.remove_mean(hp[enemies]) * (1. - wtc_ratio)) + \
+                (_jitcode.remove_mean(_jitcode.euclidean_distance(pos[i] - pos[enemies])) * wtc_ratio)
             )
         ]
     else:
@@ -186,8 +186,8 @@ def global_close_weak(pos, hp, team, group, group_i, wtc_ratio=0.7):
     D += np.eye(D.shape[0]) * np.max(D) + np.random.rand(D.shape[0], D.shape[0]) / 4.
 
     # return the enemy that is closest and lowest HP
-    hp_adj = _jitcode.remove_bias(hp) * (1. - wtc_ratio)
-    dist_adj = _jitcode.remove_bias(D) * wtc_ratio
+    hp_adj = _jitcode.remove_mean(hp) * (1. - wtc_ratio)
+    dist_adj = _jitcode.remove_mean(D) * wtc_ratio
 
     # get unit IDs that are not equal to this team for enemies.
     id_not, = np.where(team != t)

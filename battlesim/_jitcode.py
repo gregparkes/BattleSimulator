@@ -89,6 +89,6 @@ def minmax(X):
 
 
 @njit
-def remove_bias(x):
+def remove_mean(x):
     """Removes the mean from vector x."""
     return x - np.mean(x)

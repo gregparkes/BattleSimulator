@@ -10,8 +10,8 @@ import matplotlib.pyplot as plt
 from matplotlib import animation
 import itertools as it
 
-from ._simulator_fast import frame_columns
-from .utils import check_columns, slice_loop
+from battlesim._simulator_fast import frame_columns
+from battlesim.utils import check_columns, slice_loop
 
 from matplotlib.lines import Line2D
 

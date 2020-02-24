@@ -13,7 +13,7 @@ from matplotlib.pyplot import subplots
 from scipy.stats import multivariate_normal
 from typing import Optional, Tuple
 
-from . import _jitcode
+from ._jitcode import minmax
 from . import utils
 
 
@@ -36,19 +36,23 @@ def _generate_random_gauss(pos: np.ndarray,
     # scaling factors
     # perfect scaling factor based on linear model y=mx + b
     x_n = np.arange(0, 300, 5)
-    y_n = np.linspace(5, 2, 60)
+    y_n = np.linspace(5, 3, 60)
     coef = np.polyfit(x_n, y_n, deg=1)
     # calculate scaling factor from formula
     sx = Nx / lm(Nx, coef[0], coef[1])
     sy = Ny / lm(Ny, coef[0], coef[1])
+
+    print(sx, sy)
     # define mean
     m = np.random.rand(2) * np.array([Nx, Ny]) + np.array([xmin, ymin])
     # Diagonal elements for covariance matrix
-    D = np.random.rand(2) + np.array([1., 0.])
+    D = np.random.rand(2) + np.array([4., 1.5])
     # random choice to invert cov
     R = np.random.choice([1., -1.])
     # construct covariance
     C = np.array([[D[0] * sx, D[1] * R], [D[1] * R, D[0] * sy]])
+
+    print(m, C)
     # use scipy.stats
     z = multivariate_normal(m, C).pdf(pos)
     return z
@@ -148,7 +152,7 @@ class Terrain(object):
         return (int((self.bounds_[1] - self.bounds_[0]) / self.res_),
                 int((self.bounds_[3] - self.bounds_[2]) / self.res_))
 
-    def _generate_random_terrain(self, n_gauss: int = 100):
+    def _generate_random_terrain(self, n_gauss: int = 3):
         # define meshgrid
         X, Y = self.get_grid()
 
@@ -162,7 +166,7 @@ class Terrain(object):
         # add probabilities
         Z = Z_cont.sum(axis=2)
         # scale between 0 and 1 and return
-        return _jitcode.minmax(Z)
+        return minmax(Z)
 
     def __repr__(self):
         return "Terrain(init={}, type='{}', dim={}, resolution={:0.3f})".format(
@@ -202,7 +206,7 @@ class Terrain(object):
         if f is None:
             self._Z = self._generate_random_terrain(n_random)
         elif callable(f):
-            self._Z = _jitcode.minmax(f(*self.get_grid()))
+            self._Z = minmax(f(*self.get_grid()))
         else:
             raise TypeError("'f' must be a function or None")
         return self
