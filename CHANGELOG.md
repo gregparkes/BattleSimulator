@@ -6,6 +6,7 @@ All notable changes to this project will be documented in this file.
 
 ### Changed
 - Large-scale internal adjustments, code cleaning, new folders and files
+- adjustments as to how `Terrain` is generated.
 
 ## [0.3.5] - 2019-10-18
 ### Added
