@@ -14,6 +14,7 @@ from scipy.stats import multivariate_normal
 from typing import Optional, Tuple
 
 from ._jitcode import minmax
+from numba import njit
 from . import utils
 
 
@@ -56,6 +57,44 @@ def _generate_random_gauss(pos: np.ndarray,
     # use scipy.stats
     z = multivariate_normal(m, C).pdf(pos)
     return z
+
+
+def _generate_noise_terrain(dim_x, dim_y):
+    noise = np.random.rand(dim_x, dim_y)
+
+    # %%
+    @njit
+    def _smooth_noise(x, y, noisewidth=100, noiseheight=100):
+        # get fractional part
+        fractX = x - int(x)
+        fractY = y - int(y)
+        # wrap
+        x1 = (int(x) + noisewidth) % noisewidth
+        y1 = (int(y) + noiseheight) % noiseheight
+        # neighbor values
+        x2 = (x1 + noisewidth - 1) % noisewidth
+        y2 = (y1 + noiseheight - 1) % noiseheight
+        # smooth the noise with bilinear interpolation
+        val = 0.
+        val += fractX * fractY * noise[y1, x1]
+        val += (1 - fractX) * fractY * noise[y1, x2]
+        val += fractX * (1 - fractY) * noise[y2, x1]
+        val += (1 - fractX) * (1 - fractY) * noise[y2, x2]
+        return val
+
+    @njit
+    def _turbulence(x, y, size):
+        val = 0.
+        init_size = size
+        while size >= 1:
+            val += smooth_noise(x / size, y / size, dim_x, dim_y) * size
+            size /= 2.
+        return 128 * val / init_size
+
+    for x in range(dim_x):
+        for y in range(dim_y):
+            noise[x, y] = turbulence(x, y, 40)
+    return noise
 
 
 class Terrain(object):
@@ -177,7 +216,7 @@ class Terrain(object):
     def get_grid(self):
         """Returns the grid as an mgrid."""
         return np.mgrid[self.bounds_[0]:self.bounds_[1]:self.res_,
-                        self.bounds_[2]:self.bounds_[3]:self.res_]
+               self.bounds_[2]:self.bounds_[3]:self.res_]
 
     def get_flat_grid(self):
         """Produces a flat terrain grid."""
