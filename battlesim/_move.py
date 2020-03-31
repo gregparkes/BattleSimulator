@@ -10,7 +10,7 @@ This file is concerned with movement functions associated with each army group.
 There is the default 'move' and fancier options such as A*.
 """
 
-from numba import njit
+from numba import jit, float32
 
 __all__ = ["to_enemy"]
 
@@ -24,7 +24,7 @@ Parameters
 """
 
 
-@njit
+@jit(nopython=True)
 def to_enemy(speed, dd, distances, Z, Z_xi, Z_yi, i):
     """
     Moves according to the euclidean distance towards the target.

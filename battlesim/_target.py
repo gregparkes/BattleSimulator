@@ -110,7 +110,7 @@ def close_weak(pos, hp, enemies, allies, i, wtc_ratio=0.7):
     if enemies.shape[0] > 0:
         return enemies[
             np.argmin(
-                (_jitcode.remove_mean(hp[enemies]) * (1. - wtc_ratio)) + \
+                (_jitcode.remove_mean(hp[enemies]) * (1. - wtc_ratio)) +
                 (_jitcode.remove_mean(_jitcode.euclidean_distance(pos[i] - pos[enemies])) * wtc_ratio)
             )
         ]
@@ -118,7 +118,7 @@ def close_weak(pos, hp, enemies, allies, i, wtc_ratio=0.7):
         return -1
 
 
-######################### GLOBAL TARGET ASSIGNMENTS #######################################
+"""######################### GLOBAL TARGET ASSIGNMENTS #######################################"""
 
 """
 A selection of algorithms for deciding all enemies to target.
