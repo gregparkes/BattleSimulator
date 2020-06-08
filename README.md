@@ -170,3 +170,5 @@ This is still in active development retracing the steps of the project. All lega
 ***
 
 Ensure that any use of this material is appropriately referenced and in compliance with the [license](LICENSE.txt).
+
+[![Run on Repl.it](https://repl.it/badge/github/gregparkes/BattleSimulator)](https://repl.it/github/gregparkes/BattleSimulator)
