@@ -6,6 +6,10 @@ Users familiar with [Totally Accurate Battle Simulator](https://steamcommunity.c
 
 **Current version: 0.3.6**
 
+*Note that as of July 2020, development for the Python version (i.e this repository) is presently 
+no longer in effect. Effort instead is going into [Javascript/Web](https://gregparkes.github.io/WebBattleSim/) 
+development instead, as it is more interactive*.
+
 ![Image not found](simulations/main.gif)
 
 The code for the primary engine is found in `battlesim/`, and implementations/examples are found in the Jupyter notebooks. Animations should display properly in these notebooks.

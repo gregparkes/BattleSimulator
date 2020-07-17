@@ -1,0 +1,13 @@
+package:
+  name: battlesim
+  version: 0.3.6
+
+build:
+  number: 1
+
+requirements:
+  run:
+    - python
+
+about:
+  summary: A python package for simulating battles and visualizing them in animation

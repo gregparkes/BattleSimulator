@@ -1,0 +1,19 @@
+# disable sudo
+sudo: false
+
+# set language to be python
+language: python
+
+# python version is 3.7
+python: 3.7
+
+# install codecov pip dependency
+install:
+  - pip install codecov
+
+# run tests
+script:
+  - coverage run tests/*.py
+
+after_success:
+  - codecov
