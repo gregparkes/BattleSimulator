@@ -108,9 +108,9 @@ def simulate_battle(M,
     if ret_frames:
         frames = np.zeros(
             (max_step + 1, M.shape[0]),
-            dtype=[("frame", np.int64, 1), ("pos", np.float32, 2), ("target", np.int32, 1),
-                   ("hp", np.float32, 1), ("armor", np.float32, 1), ("dpos", np.float32, 2), ("team", np.uint8, 1),
-                   ("utype", np.uint8, 1)
+            dtype=[("frame", np.int64), ("pos", np.float32, 2), ("target", np.int32),
+                   ("hp", np.float32), ("armor", np.float32), ("dpos", np.float32, 2), ("team", np.uint8),
+                   ("utype", np.uint8)
             ]
         )
 

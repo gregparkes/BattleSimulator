@@ -43,7 +43,7 @@ def _generate_random_gauss(pos: np.ndarray,
     sx = Nx / lm(Nx, coef[0], coef[1])
     sy = Ny / lm(Ny, coef[0], coef[1])
 
-    print(sx, sy)
+    # print(sx, sy)
     # define mean
     m = np.random.rand(2) * np.array([Nx, Ny]) + np.array([xmin, ymin])
     # Diagonal elements for covariance matrix
@@ -53,7 +53,7 @@ def _generate_random_gauss(pos: np.ndarray,
     # construct covariance
     C = np.array([[D[0] * sx, D[1] * R], [D[1] * R, D[0] * sy]])
 
-    print(m, C)
+    #print(m, C)
     # use scipy.stats
     z = multivariate_normal(m, C).pdf(pos)
     return z

@@ -11,9 +11,9 @@ from typing import Dict, Union, Tuple, Callable, List
 
 from . import utils
 from . import _target
-from .plot import quiver_fight
-from . import _ai
-from . import _unit_quant
+from .plot import quiver_fight, loop_colors
+from . import _ai as AI
+from . import _unit_quant as UnitQuant
 from .__defaults import default_db
 from ._simulator_fast import simulate_battle as sim_battle
 from ._distributions import Distribution
@@ -62,12 +62,13 @@ class Battle(object):
 
     """####################### HIDDEN FUNCTIONS ##############################"""
 
-    def _dataset(self, n: int):
+    @staticmethod
+    def _dataset(n: int):
         return np.zeros(n, dtype=[
-            ("team", np.uint8, 1), ("utype", np.uint8, 1), ("pos", np.float32, 2), ("hp", np.float32, 1),
-            ("armor", np.float32, 1), ("range", np.float32, 1), ("speed", np.float32, 1), ("acc", np.float32, 1),
-            ("dodge", np.float32, 1), ("dmg", np.float32, 1), ("target", np.int32, 1),
-            ("group", np.uint8, 1)
+            ("team", np.uint8), ("utype", np.uint8), ("pos", np.float32, 2), ("hp", np.float32),
+            ("armor", np.float32), ("range", np.float32), ("speed", np.float32), ("acc", np.float32),
+            ("dodge", np.float32), ("dmg", np.float32), ("target", np.int32),
+            ("group", np.uint8)
         ])
 
     def _is_instantiated(self):
@@ -100,9 +101,9 @@ class Battle(object):
 
     def _plot_simulation(self, func: Callable):
         labels = self.allegiances_.to_dict()
-        cols = utils.slice_loop(_simplot.loop_colors(), len(self.allegiances_))
+        cols = utils.slice_loop(loop_colors(), len(self.allegiances_))
         # quantify size by value
-        qscore = _unit_quant.rank_score(self.db_).reset_index(drop=True).to_dict()
+        qscore = UnitQuant.rank_score(self.db_).reset_index(drop=True).to_dict()
 
         # call plotting function - with or without terrain
         if self.T_ is not None:
@@ -292,7 +293,7 @@ class Battle(object):
 
     @decision_ai_.setter
     def decision_ai_(self, da):
-        self._decision_ai = self._determine_target_ai(da, pkg=_ai)
+        self._decision_ai = self._determine_target_ai(da, pkg=AI)
 
     ################### HIDDEN ATTRIBUTE #################################
 
@@ -331,7 +332,7 @@ class Battle(object):
         self._unit_roster = [u.lower() for u, _ in army_set]
         self._unit_n = [n for _, n in army_set]
 
-        self._M = self._dataset(sum(self._unit_n))
+        self._M = Battle._dataset(sum(self._unit_n))
         # check that groups exist in army_set
         utils.check_groups_in_db(self.army_set_, self.db_)
 
@@ -493,7 +494,7 @@ class Battle(object):
         """
         self.decision_ai_ = decision
         # map these strings to actual functions, ready for simulate.
-        self._decision_map = self._determine_ai_mapping(self.decision_ai_, pkg=_ai)
+        self._decision_map = self._determine_ai_mapping(self.decision_ai_, pkg=AI)
         return self
 
     def set_bounds(self, bounds: Tuple[float, float, float, float]):
