@@ -25,13 +25,38 @@ Parameters
 
 
 @jit(nopython=True)
-def to_enemy(speed, dd, distances, Z, Z_xi, Z_yi, i):
+def to_enemy(M, dx, dy, dist, Z, Z_xi, Z_yi, i):
     """
-    Moves according to the euclidean distance towards the target.
+    Updates M[x,y] towards the target.
 
-    Returns adjustment, does not modify pos inplace.
+    Modifies inplace..
 
     The update speed is calculated as:
         s_i * (dd_i / m_ij) * (1 - (Z_i / 2))
     """
-    return (speed[i] * (dd[i] / distances[i])) * (1. - (Z[Z_xi[i], Z_yi[i]] / 2.))
+    # modify dist to prevent it being zero
+    D = dist[i] + 1e-12
+    # cache the terrain + speed influences.
+    terrain_tick = (1. - (Z[Z_xi[i], Z_yi[i]] / 2.)) * M['speed'][i]
+    # compute normed directional derivative and update.
+    M['x'][i] += (dx[i] / D) * terrain_tick
+    M['y'][i] += (dy[i] / D) * terrain_tick
+
+
+@jit(nopython=True)
+def from_enemy(M, dx, dy, dist, Z, Z_xi, Z_yi, i):
+    """
+    Updates M[x,y] towards the target.
+
+    Modifies inplace..
+
+    The update speed is calculated as:
+        s_i * (dd_i / m_ij) * (1 - (Z_i / 2))
+    """
+    # modify dist to prevent it being zero
+    D = dist[i] + 1e-12
+    # cache the terrain + speed influences.
+    terrain_tick = (1. - (Z[Z_xi[i], Z_yi[i]] / 2.)) * M['speed'][i]
+    # compute normed directional derivative and update.
+    M['x'][i] -= (dx[i] / D) * terrain_tick
+    M['y'][i] -= (dy[i] / D) * terrain_tick

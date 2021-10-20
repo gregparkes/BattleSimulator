@@ -3,9 +3,12 @@
 All notable changes to this project will be documented in this file.
 
 ## [0.3.6] - 2020-02-04 (In Development)
+### Added
+- Terrains can now be generated using *perlin noise*. This is not only significantly faster for larger maps but generates more attractive background maps.
 
 ### Changed
 - Large-scale internal adjustments, code cleaning, new folders and files
+- Latest versions of `numba` allow for heterogeneous matrix dtypes, allowing for code refactoring for jit sections. Significantly cleaner function arguments.
 - adjustments as to how `Terrain` is generated.
 
 ## [0.3.5] - 2019-10-18

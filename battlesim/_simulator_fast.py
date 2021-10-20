@@ -25,13 +25,18 @@ def frame_columns():
 def _copy_frame(Frames, M, i):
     # copy over data from M into frames.
     Frames["frame"][i] = i
-    Frames["pos"][i] = M["pos"]
+    Frames["x"][i] = M["x"]
+    Frames["y"][i] = M["y"]
     Frames["target"][i] = M["target"]
     Frames["hp"][i] = M["hp"]
     Frames["armor"][i] = M["armor"]
     # create direction norm
-    dnorm = _jitcode.direction_norm(M["pos"][M["target"]] - M["pos"])
-    Frames["dpos"][i] = dnorm
+    dx = M["x"][M['target']] - M['x']
+    dy = M["y"][M['target']] - M['y']
+    dist = _jitcode.euclidean_distance2(dx, dy)
+    # now store in two vars ( preventing dist=0 for errors)
+    Frames['ddx'][i] = dx / (dist + 1e-12)
+    Frames['ddy'][i] = dy / (dist + 1e-12)
     Frames["team"][i] = M["team"]
     Frames["utype"][i] = M["utype"]
     return
@@ -49,10 +54,10 @@ def _convert_to_pandas(frames):
         "alive": frames["hp"][s] > 0,
         "hp": np.clip(frames["hp"][s], a_min=0., a_max=None),
         "armor": np.clip(frames["armor"][s], a_min=0, a_max=None),
-        "x": frames["pos"][s][:, 0],
-        "y": frames["pos"][s][:, 1],
-        "dir_x": frames["dpos"][s][:, 0],
-        "dir_y": frames["dpos"][s][:, 1]
+        "x": frames["x"][s],
+        "y": frames["y"][s],
+        "dir_x": frames["ddx"][s],
+        "dir_y": frames["ddy"][s]
     }, index=frames["frame"][s]) for s in range(steps)])
     DF.index.name = "frame"
     return DF
@@ -70,6 +75,11 @@ def simulate_battle(M,
     This uses a matrix M which is **heterogenous**; that is to say that
     it has named columns [pos, target, hp, dpos, team, group] which
     helps interpretability at the cost of some processing time.
+
+    Columns in M are '("team", np.uint8), ("utype", np.uint8), ("pos", np.float32, 2), ("hp", np.float32),
+            ("armor", np.float32), ("range", np.float32), ("speed", np.float32), ("acc", np.float32),
+            ("dodge", np.float32), ("dmg", np.float32), ("target", np.int32),
+            ("group", np.uint8)'
 
     Parameters
     --------
@@ -108,9 +118,9 @@ def simulate_battle(M,
     if ret_frames:
         frames = np.zeros(
             (max_step + 1, M.shape[0]),
-            dtype=[("frame", np.int64), ("pos", np.float32, 2), ("target", np.int32),
-                   ("hp", np.float32), ("armor", np.float32), ("dpos", np.float32, 2), ("team", np.uint8),
-                   ("utype", np.uint8)
+            dtype=[("frame", np.int64), ("x", np.float32), ("y", np.float32), ("target", np.int32),
+                   ("hp", np.float32), ("armor", np.float32), ("ddx", np.float32), ("ddy", np.float32),
+                   ("team", np.uint8), ("utype", np.uint8)
             ]
         )
 
@@ -121,32 +131,47 @@ def simulate_battle(M,
             _copy_frame(frames, M, t)
 
         # perform a boundary check.
-        _jitcode.boundary_check(xmin, xmax, ymin, ymax, M["pos"])
+        _jitcode.boundary_check(xmin, xmax, ymin, ymax, M["x"], M['y'])
         # list of indices per unit for which tile they are sitting on (X, Y)
-        X_t_ind = np.argmin(np.abs(M["pos"][:, 0] - X_m), axis=0)
-        Y_t_ind = np.argmin(np.abs(M["pos"][:, 1] - Y_m), axis=0)
+        X_t_ind = np.argmin(np.abs(M["x"] - X_m), axis=0)
+        Y_t_ind = np.argmin(np.abs(M["y"] - Y_m), axis=0)
 
         """# pre-compute the direction derivatives and magnitude/distance for each unit to it's target in batch."""
-        dir_vec = M["pos"][M["target"]] - M["pos"]
-        dists = _jitcode.euclidean_distance(dir_vec)
+        dx = M['x'][M['target']] - M['x']
+        dy = M['y'][M['target']] - M['y']
+        dists = _jitcode.euclidean_distance2(dx, dy)
         """precompute enemy and ally target listings"""
         enemy_targets = [np.argwhere((M["hp"] > 0) & (M["team"] != T)).flatten() for T in teams]
         ally_targets = [np.argwhere((M["hp"] > 0) & (M["team"] == T)).flatten() for T in teams]
         """# pre-compute the 'luck' of each unit with random numbers."""
-        round_luck = np.random.rand(M.shape[0], 2)
+        round_luck = np.random.rand(M.shape[0])
 
         # iterate over units and check their life, target.
         for i in range(M.shape[0]):
             if M["hp"][i] > 0.:
+                # fetch the function 'hit_and_run', 'aggressive' in `_ai.py`, etc.
                 dm = decision_map[M["group"][i]]
                 # AI-based decision for attack/defend.
                 running = (dm(
-                    # variables
-                    M["pos"], M["speed"], M["range"], M["acc"], M["dodge"],
-                    M["target"], M["dmg"], M["hp"], M["armor"], round_luck, dists, dir_vec,
-                    M["team"], target_map[M["group"][i]],
-                    enemy_targets[M["team"][i]], ally_targets[M["team"][i]],
-                    Z_m, X_t_ind, Y_t_ind, i
+                    # """The reason why the variables within M are split up is in a previous version,
+                    #                     numba did not support this set up of numpy array. It now does!
+                    #                     """
+                    # the main data matrix.
+                    M,
+                    # calculated 'luck' rolls for round
+                    round_luck,
+                    # euclidean distance to targets
+                    dists,
+                    # directional derivatives to targets
+                    dx, dy,
+                    # group indices (targets to i, enemies of i, allies of i)
+                    target_map[M["group"][i]],
+                    enemy_targets[M["team"][i]],
+                    ally_targets[M["team"][i]],
+                    # variables to do with terrain.
+                    Z_m, X_t_ind, Y_t_ind,
+                    # current unit under examination - index.
+                    i
                 ))
 
         t += 1

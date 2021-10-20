@@ -13,8 +13,11 @@ from matplotlib.pyplot import subplots
 from scipy.stats import multivariate_normal
 from typing import Optional, Tuple
 
+from numba import njit, prange
+
+
 from ._jitcode import minmax
-from numba import njit
+from ._noise import create_perlin_map
 from . import utils
 
 
@@ -59,44 +62,6 @@ def _generate_random_gauss(pos: np.ndarray,
     return z
 
 
-def _generate_noise_terrain(dim_x, dim_y):
-    noise = np.random.rand(dim_x, dim_y)
-
-    # %%
-    @njit
-    def _smooth_noise(x, y, noisewidth=100, noiseheight=100):
-        # get fractional part
-        fractX = x - int(x)
-        fractY = y - int(y)
-        # wrap
-        x1 = (int(x) + noisewidth) % noisewidth
-        y1 = (int(y) + noiseheight) % noiseheight
-        # neighbor values
-        x2 = (x1 + noisewidth - 1) % noisewidth
-        y2 = (y1 + noiseheight - 1) % noiseheight
-        # smooth the noise with bilinear interpolation
-        val = 0.
-        val += fractX * fractY * noise[y1, x1]
-        val += (1 - fractX) * fractY * noise[y1, x2]
-        val += fractX * (1 - fractY) * noise[y2, x1]
-        val += (1 - fractX) * (1 - fractY) * noise[y2, x2]
-        return val
-
-    @njit
-    def _turbulence(x, y, size):
-        val = 0.
-        init_size = size
-        while size >= 1:
-            val += smooth_noise(x / size, y / size, dim_x, dim_y) * size
-            size /= 2.
-        return 128 * val / init_size
-
-    for x in range(dim_x):
-        for y in range(dim_y):
-            noise[x, y] = turbulence(x, y, 40)
-    return noise
-
-
 class Terrain(object):
     """
     The Terrain object is responsible for generating a terrain or map
@@ -115,7 +80,8 @@ class Terrain(object):
     def __init__(self,
                  dim: Tuple[float, float, float, float] = (0., 10., 0., 10.),
                  res: float = .1,
-                 form: Optional[str] = "contour"):
+                 form: Optional[str] = "contour",
+                 dtype: Optional[str] = "perlin"):
         """
         Defines a Terrain object.
 
@@ -130,11 +96,14 @@ class Terrain(object):
                 -grid applies a function z = f(x, y) or random and discretizes this into square boxes.
                 -contour applies a function z = f(x, y) or random and plots filled-contours of the background.
                 -None defines a flat grid with no height penalties.
+        dtype : str
+            Defines which function to use to generate noise map.
         """
         self.form_ = form
         self.bounds_ = dim
         self.res_ = res
         self._Z = None
+        self.dtype = dtype
 
     """ '################################## ATTRIBUTES ########################################### """
 
@@ -243,11 +212,17 @@ class Terrain(object):
         if self.form_ is None:
             self._Z = np.zeros(self._m_size())
         if f is None:
-            self._Z = self._generate_random_terrain(n_random)
+            if self.dtype == 'gauss':
+                self._Z = self._generate_random_terrain(n_random)
+            elif self.dtype == "perlin":
+                dx, dy = self._m_size()
+                self._Z = minmax(create_perlin_map(dx, dy, scale=dx // 3))
+            else:
+                raise TypeError(f"'dtype' must be one of ['gauss', 'perlin'] not {self.dtype}")
         elif callable(f):
             self._Z = minmax(f(*self.get_grid()))
         else:
-            raise TypeError("'f' must be a function or None")
+            raise TypeError(f"'f' must be a function or None, not {f}")
         return self
 
     def plot(self, ax=None, **kwargs):
@@ -263,4 +238,3 @@ class Terrain(object):
         elif self.form_ == "contour" or self.form_ == "random":
             X, Y = self.get_grid()
             ax.contourf(X, Y, self.Z_, cmap="binary", extent=self.bounds_, **kwargs)
-        return

@@ -1,10 +1,12 @@
 # battlesim: Modelling and animating simulated battles between units in Python.
 
+![pypi](https://img.shields.io/pypi/v/battlesim)
+![last commit](https://img.shields.io/github/last-commit/gregparkes/BattleSimulator)
+![repo size](https://img.shields.io/github/repo-size/gregparkes/BattleSimulator)
+
 The aim of this side project is to become familiar with Python classes and with primitive forms of animation and simulating environments. We map units onto a 2D plane and run simple simulations that involve them moving towards an enemy unit and attacking it. Rounds finish when one team has completely wiped out the other side, or we have reached the maximum number of timesteps.
 
 Users familiar with [Totally Accurate Battle Simulator](https://steamcommunity.com/app/508440) will hopefully love this package as a lot of the basic ideas are derived from this.
-
-**Current version: 0.3.6**
 
 *Note that as of July 2020, development for the Python version (i.e this repository) is presently 
 no longer in effect. Effort instead is going into [Javascript/Web](https://gregparkes.github.io/WebBattleSim/) 

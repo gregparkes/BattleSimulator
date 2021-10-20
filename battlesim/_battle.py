@@ -65,7 +65,7 @@ class Battle(object):
     @staticmethod
     def _dataset(n: int):
         return np.zeros(n, dtype=[
-            ("team", np.uint8), ("utype", np.uint8), ("pos", np.float32, 2), ("hp", np.float32),
+            ("team", np.uint8), ("utype", np.uint8), ("x", np.float32), ("y", np.float32), ("hp", np.float32),
             ("armor", np.float32), ("range", np.float32), ("speed", np.float32), ("acc", np.float32),
             ("dodge", np.float32), ("dmg", np.float32), ("target", np.int32),
             ("group", np.uint8)
@@ -116,11 +116,12 @@ class Battle(object):
         """ Given self.D_, instantiation, we should be able to map positions """
         self._is_instantiated()
         for i, (u, n, (start, end), dist) in enumerate(zip(self._unit_roster, self._unit_n, self._segments, self.D_)):
-            self.M_["pos"][start:end] = dist.sample(n)
+            self.M_["x"][start:end] = dist._dist_func(**dist.x_param_).rvs(size=n)
+            self.M_["y"][start:end] = dist._dist_func(**dist.y_param_).rvs(size=n)
 
     def _get_bounds_from_M(self):
-        xmin, xmax = self.M_["pos"][:, 0].min(), self.M_["pos"][:, 0].max()
-        ymin, ymax = self.M_["pos"][:, 1].min(), self.M_["pos"][:, 1].max()
+        xmin, xmax = self.M_["x"].min(), self.M_["x"].max()
+        ymin, ymax = self.M_["y"].min(), self.M_["y"].max()
         return np.floor(xmin), np.ceil(xmax), np.floor(ymin), np.ceil(ymax)
 
     def _check_bounds_to_M(self, bounds: Tuple[float, float, float, float]):
@@ -137,7 +138,8 @@ class Battle(object):
     def _sample_dist(self, D, segments):
         for (u, n), (start, end) in zip(self.army_set_, segments):
             self.D_.append(D)
-            self.M_["pos"][start:end] = D.sample(n)
+            self.M_["x"][start:end] = D.sample(n)
+            self.M_["y"][start:end] = D.sample(n)
 
     def _assign_initial_targets(self):
 
@@ -146,7 +148,7 @@ class Battle(object):
         for group, (start, end), func, team in zip(range(self.n_armies_), self._segments, self.init_ai_, self._teams):
             mod_func = "global_" + func
             self.M_["target"][start:end] = f_dict[mod_func](
-                self.M_["pos"], self.M_["hp"], self.M_["team"], self.M_["group"], group
+                self.M_["x"], self.M_['y'], self.M_["hp"], self.M_["team"], self.M_["group"], group
             )
 
     """---------------------- PUBLIC ATTRIBUTES AND ATTR METHODS ----------------------------------------"""

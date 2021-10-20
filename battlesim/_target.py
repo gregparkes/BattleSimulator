@@ -68,7 +68,7 @@ __all__ = get_function_names() + get_global_function_names()
 
 
 @njit
-def random(pos, hp, enemies, allies, i):
+def random(x, y, hp, enemies, allies, i):
     """
     Given enemy candidates who are alive, draw one at random.
     """
@@ -80,20 +80,21 @@ def random(pos, hp, enemies, allies, i):
 
 
 @njit
-def nearest(pos, hp, enemies, allies, i):
+def nearest(x, y, hp, enemies, allies, i):
     """
     Given enemy candidates who are alive, determine which one is nearest.
     """
     if enemies.shape[0] > 0:
         # compute distances/magnitudes
-        distances = _jitcode.euclidean_distance(pos[i] - pos[enemies])
+        #distances = _jitcode.euclidean_distance(pos[i] - pos[enemies])
+        distances = _jitcode.sq_euclidean_distance2(x, y, i, enemies)
         return enemies[np.argmin(distances)]
     else:
         return -1
 
 
 @njit
-def close_weak(pos, hp, enemies, allies, i, wtc_ratio=0.7):
+def close_weak(x, y, hp, enemies, allies, i, wtc_ratio=0.7):
     """
     Given enemy alive candidates, globally determine which one is the weakest
     and closest, using appropriate weighting for each option.
@@ -148,7 +149,7 @@ all units need a new target.
 
 
 @njit
-def global_random(pos, hp, team, group, group_i):
+def global_random(x, y, hp, team, group, group_i):
     # define
     selector = (group == group_i)
     t = np.unique(team[selector])[0]
@@ -160,12 +161,12 @@ def global_random(pos, hp, team, group, group_i):
 
 
 @njit
-def global_nearest(pos, hp, team, group, group_i):
+def global_nearest(x, y, hp, team, group, group_i):
     # define
     selector = (group == group_i)
     t = np.unique(team[selector])[0]
     # calculate distance matrix, with offset to ignore diagonal, with random noise
-    D = _jitcode.distance_matrix(pos)
+    D = _jitcode.sq_distance_matrix(x, y)
     D += np.eye(D.shape[0]) * np.max(D) + np.random.rand(D.shape[0], D.shape[0]) / 4.
     # get unit IDs that are not equal to this team for enemies.
     id_not, = np.where(team != t)
@@ -176,13 +177,13 @@ def global_nearest(pos, hp, team, group, group_i):
 
 
 @njit
-def global_close_weak(pos, hp, team, group, group_i, wtc_ratio=0.7):
+def global_close_weak(x, y, hp, team, group, group_i, wtc_ratio=0.7):
     # define
     selector = (group == group_i)
     t = np.unique(team[selector])[0]
 
     # calculate distance matrix, with offset to ignore diagonal, with random noise
-    D = _jitcode.distance_matrix(pos)
+    D = _jitcode.sq_distance_matrix(x, y)
     D += np.eye(D.shape[0]) * np.max(D) + np.random.rand(D.shape[0], D.shape[0]) / 4.
 
     # return the enemy that is closest and lowest HP

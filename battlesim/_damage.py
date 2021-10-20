@@ -24,15 +24,16 @@ def bonus_terrain_damage(Z, Z_xi, Z_yi, i, j):
 
 
 @njit
-def basic(hp, armor, target, damage, Z, Z_xi, Z_yi, i):
+def basic(M, Z, Z_xi, Z_yi, i):
     """Determines basic damage output to target i."""
-    # cache base damage.
-    dmg = (damage[i] * bonus_terrain_damage(Z, Z_xi, Z_yi, i, target[i]))
-    if armor[target[i]] > 0:
+    # cache base damage and target.
+    j = M['target'][i]
+    _dmg = M['dmg'][i] * bonus_terrain_damage(Z, Z_xi, Z_yi, i, j)
+    if M['armor'][j] > 0:
         # deal damage to armor (and a little bit to HP)
-        diff = armor[target[i]] - dmg
+        diff = M['armor'][j] - _dmg
         if diff < 0:
-            hp[target[i]] += diff
-        armor[target[i]] -= dmg
+            M['hp'][j] += diff
+        M['armor'][j] -= _dmg
     else:
-        hp[target[i]] -= dmg
+        M['hp'][j] -= _dmg

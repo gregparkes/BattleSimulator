@@ -64,12 +64,12 @@ def _height_modification(h):
 
 
 @njit
-def _select_enemy(f, pos, targets, hp, enemies, allies, i):
-    if hp[targets[i]] <= 0:
+def _select_enemy(M, f_t, enemies, allies, i):
+    if M['hp'][M['target'][i]] <= 0:
         if enemies.shape[0] > 0:
-            t = f(pos, hp, enemies, allies, i)
+            t = f_t(M['x'], M['y'], M['hp'], enemies, allies, i)
             if t != -1:
-                targets[i] = t
+                M['target'][i] = t
                 return True
             else:
                 return False
@@ -88,9 +88,13 @@ def _rng_terr(mrange, Z, Z_xi, Z_yi, i):
 """ -------------------------- ACCESSED FUNCTIONS -----------------------------------------"""
 
 
+# pos, speed, mrange, acc, dodge, targets,
+#               dmg, hp, armor, luck, distances, dd, team, target_f,
+#               enemies, allies, Z, Z_xi, Z_yi, i
+
+
 @njit
-def aggressive(pos, speed, mrange, acc, dodge, targets,
-               dmg, hp, armor, luck, distances, dd, team, target_f,
+def aggressive(M, luck, dists, dx, dy, target_f,
                enemies, allies, Z, Z_xi, Z_yi, i):
     """
     This basic AI looks whether the current unit i is in range of it's target'
@@ -98,60 +102,61 @@ def aggressive(pos, speed, mrange, acc, dodge, targets,
     """
 
     """# use ai_map to dictionary-map the group number to the appropriate AI function"""
-    """ Arguments: positions, targets, hp, enemies, allies, index, [extras]"""
-    if _select_enemy(target_f, pos, targets, hp, enemies, allies, i):
+    if _select_enemy(M, target_f, enemies, allies, i):
         # if not in range, move towards target, or hit a chance (5%) and move forward anyway.
-        if distances[i] > _rng_terr(mrange, Z, Z_xi, Z_yi, i) or luck[i, 1] < 0.05:
+        if dists[i] > _rng_terr(M['range'], Z, Z_xi, Z_yi, i) or luck[i] < 0.05:
             """# move unit towards attacking enemy."""
-            pos[i, :] += _move.to_enemy(speed, dd, distances, Z, Z_xi, Z_yi, i)
+            _move.to_enemy(M, dx, dy, dists, Z, Z_xi, Z_yi, i)
             return True
         else:
             """# calculate the chance of hitting the opponent"""
-            h_chance = _hit.basic_chance(acc, dodge, distances, i, targets[i])
+            h_chance = _hit.basic_chance(M, dists, i)
             """if hit chance overcomes round luck.. deal damage to HP."""
-            if h_chance > luck[i, 0]:
-                _damage.basic(hp, armor, targets, dmg, Z, Z_xi, Z_yi, i)
+            if h_chance > luck[i]:
+                _damage.basic(M, Z, Z_xi, Z_yi, i)
             return True
     else:
         return False
 
 
 @njit
-def hit_and_run(pos, speed, mrange, acc, dodge, targets,
-                dmg, hp, armor, luck, distances, dd, team, target_f,
+def hit_and_run(M, luck, dists, dx, dy, target_f,
                 enemies, allies, Z, Z_xi, Z_yi, i):
     """
     This AI option sees if its range/movement is greater than it's enemy, and if it is, it
     performs hit-and-run on it's opponent.
     """
     # assign target enemy
-    if _select_enemy(target_f, pos, targets, hp, enemies, allies, i):
+    if _select_enemy(M, target_f, enemies, allies, i):
 
-        if (speed[i] > speed[targets[i]]) and \
-                (_rng_terr(mrange, Z, Z_xi, Z_yi, i) > _rng_terr(mrange, Z, Z_xi, Z_yi, targets[i])):
+        # cache quick stats
+        t_i = M["target"][i]
+        range_i = _rng_terr(M["range"], Z, Z_xi, Z_yi, i)
+        range_j = _rng_terr(M["range"], Z, Z_xi, Z_yi, t_i)
+
+        if (M["speed"][i] > M["speed"][t_i]) and (range_i > range_j):
 
             # if we're out of range, move towards
-            if distances[i] > _rng_terr(mrange, Z, Z_xi, Z_yi, i):
+            if dists[i] > range_i:
                 """# move towards unit."""
-                pos[i, :] += _move.to_enemy(speed, dd, distances, Z, Z_xi, Z_yi, i)
+                _move.to_enemy(M, dx, dy, dists, Z, Z_xi, Z_yi, i)
                 return True
             # else if the enemy is in range, back off
-            elif distances[i] < _rng_terr(mrange, Z, Z_xi, Z_yi, targets[i]):
+            elif dists[i] < range_j:
                 """# move directly away from unit."""
-                pos[i, :] -= _move.to_enemy(speed, dd, distances, Z, Z_xi, Z_yi, i)
+                _move.from_enemy(M, dx, dy, dists, Z, Z_xi, Z_yi, i)
                 return True
             else:
                 """# so we're in range, the enemy is not, attack."""
-                h_chance = _hit.basic_chance(acc, dodge, distances, i, targets[i])
-                if h_chance > luck[i, 0]:
-                    _damage.basic(hp, armor, targets, dmg, Z, Z_xi, Z_yi, i)
+                h_chance = _hit.basic_chance(M, dists, i)
+
+                if h_chance > luck[i]:
+                    _damage.basic(M, Z, Z_xi, Z_yi, i)
                 return True
         else:
             # otherwise just perform an 'aggressive' model.
-            return aggressive(pos, speed, mrange, acc, dodge, targets,
-                              dmg, hp, armor, luck, distances, dd,
-                              team, target_f, enemies, allies,
-                              Z, Z_xi, Z_yi, i)
+            return aggressive(M, luck, dists, dx, dy, target_f,
+                              enemies, allies, Z, Z_xi, Z_yi, i)
     else:
         return False
 
