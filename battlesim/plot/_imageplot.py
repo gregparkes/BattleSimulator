@@ -48,13 +48,13 @@ def accuracy_contour(M, index, acc_penalty=15., boxlim=15):
     Given a selected unit, with it's position, simulate accuracy/miss distances
     to draw accuracy contours.
     """
-    xlim = np.asarray([M["pos"][index, 0] - boxlim, M["pos"][index, 0] + boxlim])
-    ylim = np.asarray([M["pos"][index, 1] - boxlim, M["pos"][index, 1] + boxlim])
+    xlim = np.asarray([M["x"][index] - boxlim, M["x"][index] + boxlim])
+    ylim = np.asarray([M["y"][index] - boxlim, M["y"][index] + boxlim])
 
     xgrid = np.linspace(xlim[0], xlim[1], 100)
     ygrid = np.linspace(ylim[0], ylim[1], 100)
     X, Y = np.meshgrid(xgrid, ygrid)
-    Z = np.sqrt(np.power(X - M["pos"][index, 0], 2) + np.power(Y - M["pos"][index, 1], 2))
+    Z = np.sqrt(np.power(X - M["x"][index], 2) + np.power(Y - M["y"][index], 2))
     # normalize
     n_Z = (1. - (Z / acc_penalty)) * M["acc"][index]
     # get range also
@@ -64,10 +64,10 @@ def accuracy_contour(M, index, acc_penalty=15., boxlim=15):
     ax.set_xlim(xlim)
     ax.set_ylim(ylim)
 
-    ax.scatter(M["pos"][index, 0], M["pos"][index, 1], c="red")
+    ax.scatter(M["x"][index], M["y"][index], c="red")
     CS = ax.contour(X, Y, n_Z, levels=15)
     # add range circle
-    ax.add_patch(plt.Circle((M["pos"][index, 0], M["pos"][index, 1]), M["range"][index], color="green", alpha=.3))
+    ax.add_patch(plt.Circle((M["x"][index], M["y"][index]), M["range"][index], color="green", alpha=.3))
     ax.clabel(CS, inline=1, fontsize=8)
     return fig, ax
 
@@ -78,10 +78,10 @@ def hit_contour(M, i1, i2, acc_penalty=15., boxlim=10):
     """
 
     def _contour_grid(M, j):
-        xgrid = np.linspace(M["pos"][j, 0] - boxlim, M["pos"][j, 0] + boxlim, 100)
-        ygrid = np.linspace(M["pos"][j, 1] - boxlim, M["pos"][j, 1] + boxlim, 100)
+        xgrid = np.linspace(M["x"][j] - boxlim, M["x"][j] + boxlim, 100)
+        ygrid = np.linspace(M["y"][j] - boxlim, M["y"][j] + boxlim, 100)
         X, Y = np.meshgrid(xgrid, ygrid)
-        Z = np.sqrt(np.power(X - M["pos"][j, 0], 2) + np.power(Y - M["pos"][j, 1], 2))
+        Z = np.sqrt(np.power(X - M["x"][j], 2) + np.power(Y - M["y"][j], 2))
         return X, Y, Z
 
     u1x, u1y, u1z = _contour_grid(M, i1)
@@ -92,11 +92,11 @@ def hit_contour(M, i1, i2, acc_penalty=15., boxlim=10):
 
     fig, ax = plt.subplots()
     # scatter
-    ax.scatter(M["pos"][i1, 0], M["pos"][i1, 1], c="red", s=50)
-    ax.scatter(M["pos"][i2, 0], M["pos"][i2, 1], c="green", marker="^", s=50)
+    ax.scatter(M["x"][i1], M["y"][i1], c="red", s=50)
+    ax.scatter(M["x"][i2], M["y"][i2], c="green", marker="^", s=50)
     # add range circle
-    ax.add_patch(plt.Circle((M["pos"][i1, 0], M["pos"][i1, 1]), M["range"][i1], color="green", alpha=.3))
-    ax.add_patch(plt.Circle((M["pos"][i2, 0], M["pos"][i2, 1]), M["range"][i2], color="red", alpha=.3))
+    ax.add_patch(plt.Circle((M["x"][i1], M["y"][i1]), M["range"][i1], color="green", alpha=.3))
+    ax.add_patch(plt.Circle((M["x"][i2], M["y"][i2]), M["range"][i2], color="red", alpha=.3))
     # contours
     CS1 = ax.contour(u1x, u1y, nZu1, levels=10, cmap="winter")
     CS2 = ax.contour(u2x, u2y, nZu2, levels=10, cmap="summer")

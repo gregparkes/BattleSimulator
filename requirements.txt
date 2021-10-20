@@ -3,4 +3,3 @@ pandas
 matplotlib
 numba
 scipy
-pytest

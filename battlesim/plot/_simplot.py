@@ -10,7 +10,7 @@ import matplotlib.pyplot as plt
 from matplotlib import animation
 import itertools as it
 
-from battlesim._simulator_fast import frame_columns
+from battlesim.simulation._simulator_fast import frame_columns
 from battlesim.utils import check_columns, slice_loop
 
 from matplotlib.lines import Line2D
@@ -48,7 +48,7 @@ def quiver_fight(frames,
         The dataframe with each frame step to animate
         Columns included must be: 'x', 'y', 'dir_x', 'dir_y', 'allegiance', 'frame' and 'alive'
     terrain : bsm.Terrain object, optional
-        A terrain object to generate and draw from.
+        A terra object to generate and draw from.
     allegiance_label : dict
         maps allegiance in Frames["allegiance"] (k) to a label str (v)
     allegiance_color : dict
@@ -71,7 +71,7 @@ def quiver_fight(frames,
     # create plot
     fig = plt.figure(figsize=(8, 6))
     ax = fig.add_subplot(111)
-    # plot the terrain underneath
+    # plot the terra underneath
     if terrain is not None:
         terrain.plot(ax, alpha=.2)
 

@@ -13,12 +13,9 @@ from matplotlib.pyplot import subplots
 from scipy.stats import multivariate_normal
 from typing import Optional, Tuple
 
-from numba import njit, prange
-
-
-from ._jitcode import minmax
+from battlesim._mathutils import minmax
 from ._noise import create_perlin_map
-from . import utils
+from battlesim import utils
 
 
 def get_tile_size(dim: Tuple[float, float, float, float],
@@ -62,9 +59,9 @@ def _generate_random_gauss(pos: np.ndarray,
     return z
 
 
-class Terrain(object):
+class Terrain:
     """
-    The Terrain object is responsible for generating a terrain or map
+    The Terrain object is responsible for generating a terra or map
     for the background of a given simulation.
 
     The Z-variable (depth) can be used in movement calculations of units, depending
@@ -73,7 +70,7 @@ class Terrain(object):
     In addition, the Z-variable could be used in calculations of the range/damage
     etc.
 
-    The terrain object is responsible not only for the type of background but the
+    The terra object is responsible not only for the type of background but the
     way in which it is displayed.
     """
 
@@ -92,7 +89,7 @@ class Terrain(object):
         res : float
             The resolution of the map. Higher resolutions are slower but more accurate.
         form : str
-            Determines what type of terrain to generate. Choose from ['grid', 'contour']
+            Determines what type of terra to generate. Choose from ['grid', 'contour']
                 -grid applies a function z = f(x, y) or random and discretizes this into square boxes.
                 -contour applies a function z = f(x, y) or random and plots filled-contours of the background.
                 -None defines a flat grid with no height penalties.
@@ -109,7 +106,7 @@ class Terrain(object):
 
     @property
     def form_(self):
-        """Determines the appearance of the terrain. Either grid or contour."""
+        """Determines the appearance of the terra. Either grid or contour."""
         return self._form
 
     @form_.setter
@@ -177,8 +174,8 @@ class Terrain(object):
         return minmax(Z)
 
     def __repr__(self):
-        return "Terrain(init={}, type='{}', dim={}, resolution={:0.3f})".format(
-            self.Z_ is not None, self.form_, self.bounds_, self.res_)
+        return "Terrain(init={}, dtype='{}', dims={}, resolution={:0.3f})".format(
+            self.Z_ is not None, self.dtype, self.bounds_, self.res_)
 
     """##################################### FUNCTIONS ##################################################"""
 
@@ -188,14 +185,14 @@ class Terrain(object):
                self.bounds_[2]:self.bounds_[3]:self.res_]
 
     def get_flat_grid(self):
-        """Produces a flat terrain grid."""
+        """Produces a flat terra grid."""
         X, Y = self.get_grid()
         # they are repeats, return single.
         return X[:, 0], Y[0, :]
 
     def generate(self, f=None, n_random: int = 50):
         """
-        Generates the terrain using a function.
+        Generates the terra using a function.
 
         Parameters
         ----------
@@ -226,8 +223,8 @@ class Terrain(object):
         return self
 
     def plot(self, ax=None, **kwargs):
-        """Plots the terrain as a contour to visualize."""
-        # given an axes, plot the terrain using the parameters given.
+        """Plots the terra as a contour to visualize."""
+        # given an axes, plot the terra using the parameters given.
         if self.Z_ is None:
             raise ValueError("Terrain not instantiated, call generate()")
         if ax is None:

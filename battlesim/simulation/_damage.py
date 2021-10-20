@@ -13,13 +13,13 @@ Includes a bonus damage when attacking downhill.
 *New in 0.3.5*: Factoring in Armor
 For simplicity, we treat Armor as an extra health-pool for now.
 
-Total Damage (without armor) = Base Damage * ((terrain[i] - terrain[j]) / 2) + 1
+Total Damage (without armor) = Base Damage * ((terra[i] - terra[j]) / 2) + 1
 """
 
 
 @njit
 def bonus_terrain_damage(Z, Z_xi, Z_yi, i, j):
-    """Calculates the bonus terrain damage done."""
+    """Calculates the bonus terra damage done."""
     return ((Z[Z_xi[i], Z_yi[i]] - Z[Z_xi[j], Z_yi[j]]) / 2.) + 1.
 
 

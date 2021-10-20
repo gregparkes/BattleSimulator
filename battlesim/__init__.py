@@ -22,7 +22,7 @@ del hard_dependencies, dependency, missing_dependencies
 
 # imports
 from ._battle import Battle
-from ._terrain import Terrain
+from battlesim.terra._terrain import Terrain
 from ._distributions import Distribution
 from . import __legacy
 

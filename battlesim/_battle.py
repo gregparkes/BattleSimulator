@@ -10,14 +10,13 @@ import warnings
 from typing import Dict, Union, Tuple, Callable, List
 
 from . import utils
-from . import _target
 from .plot import quiver_fight, loop_colors
-from . import _ai as AI
+from .simulation import _ai as AI, _target
 from . import _unit_quant as UnitQuant
 from .__defaults import default_db
-from ._simulator_fast import simulate_battle as sim_battle
+from battlesim.simulation._simulator_fast import simulate_battle as sim_battle
 from ._distributions import Distribution
-from ._terrain import Terrain
+from battlesim.terra._terrain import Terrain
 
 
 class Battle(object):
@@ -53,9 +52,10 @@ class Battle(object):
         self.db_ = db
         self._D = []
         self._M = None
+        self._S = None
         self._sim = None
         self.db_.index = self.db_.index.str.lower()
-        # initialise a terrain
+        # initialise a terra
         self._T = Terrain(bounds, res=.1, form=None)
         # create internal dictionary called 'army group' or ag
         self._ag = {}
@@ -63,13 +63,19 @@ class Battle(object):
     """####################### HIDDEN FUNCTIONS ##############################"""
 
     @staticmethod
-    def _dataset(n: int):
-        return np.zeros(n, dtype=[
-            ("team", np.uint8), ("utype", np.uint8), ("x", np.float32), ("y", np.float32), ("hp", np.float32),
-            ("armor", np.float32), ("range", np.float32), ("speed", np.float32), ("acc", np.float32),
-            ("dodge", np.float32), ("dmg", np.float32), ("target", np.int32),
-            ("group", np.uint8)
-        ])
+    def _generate_M(n: int):
+        return np.zeros(n, dtype=np.dtype([
+            ("id", "u4"), ("target", "u4"), ("x", "f4"), ("y", "f4"),
+            ("hp", "f4"), ("armor", "f4"), ("dmg", "f4"), ("range", "f4"), ("speed", "f4"),
+            ("acc", "f4"), ("dodge", "f4"), ("group", "u1"), ("utype", "u1"), ("team", "u1"),
+        ], align=True))
+
+    @staticmethod
+    def _generate_S(g: int):
+        return np.zeros(g, dtype=np.dtype([
+            ("id", "u4"), ("dmg", "f4"), ("range", "f4"), ("speed", "f4"),
+            ("acc", "f4"), ("dodge", "f4"), ("group", "u1"), ("utype", "u1"), ("team", "u1"),
+        ], align=True))
 
     def _is_instantiated(self):
         if self.M_ is None:
@@ -105,7 +111,7 @@ class Battle(object):
         # quantify size by value
         qscore = UnitQuant.rank_score(self.db_).reset_index(drop=True).to_dict()
 
-        # call plotting function - with or without terrain
+        # call plotting function - with or without terra
         if self.T_ is not None:
             Q = func(self.sim_, self.T_, labels, cols, qscore)
         else:
@@ -135,20 +141,16 @@ class Battle(object):
         if bounds[3] < ymax:
             raise ValueError("ymax bounds value: {} < unit bound {}".format(bounds[3], ymax))
 
-    def _sample_dist(self, D, segments):
-        for (u, n), (start, end) in zip(self.army_set_, segments):
-            self.D_.append(D)
-            self.M_["x"][start:end] = D.sample(n)
-            self.M_["y"][start:end] = D.sample(n)
-
     def _assign_initial_targets(self):
 
         f_dict = _target.get_global_map_functions()
 
         for group, (start, end), func, team in zip(range(self.n_armies_), self._segments, self.init_ai_, self._teams):
             mod_func = "global_" + func
+            # get static variables
+            # assign targets
             self.M_["target"][start:end] = f_dict[mod_func](
-                self.M_["x"], self.M_['y'], self.M_["hp"], self.M_["team"], self.M_["group"], group
+                self.M_["x"], self.M_['y'], self.M_["hp"], self.M_["team"], self.M_["id"], group
             )
 
     """---------------------- PUBLIC ATTRIBUTES AND ATTR METHODS ----------------------------------------"""
@@ -191,8 +193,13 @@ class Battle(object):
 
     @property
     def M_(self) -> np.ndarray:
-        """The raw data set underlying."""
+        """The mutable (updatable) matrix information."""
         return self._M
+
+    @property
+    def S_(self) -> np.ndarray:
+        """The immutable (fixed) matrix information."""
+        return self._S
 
     @property
     def sim_(self):
@@ -334,7 +341,8 @@ class Battle(object):
         self._unit_roster = [u.lower() for u, _ in army_set]
         self._unit_n = [n for _, n in army_set]
 
-        self._M = Battle._dataset(sum(self._unit_n))
+        self._M = Battle._generate_M(sum(self._unit_n))
+        self._S = Battle._generate_S(len(self.army_set_))
         # check that groups exist in army_set
         utils.check_groups_in_db(self.army_set_, self.db_)
 
@@ -342,24 +350,35 @@ class Battle(object):
         self._D = [Distribution("normal", loc=i * 2., scale=1.) for i in range(self.n_armies_)]
 
         # set initial values.
-        for i, (u, n, (start, end)) in enumerate(zip(self._unit_roster, self._unit_n, self._segments)):
-            self.M_["utype"][start:end] = np.argwhere(self.db_.index == u).flatten()[0]
-            self.M_["team"][start:end] = self.db_.loc[u, "allegiance_int"]
-            self.M_["group"][start:end] = i
-            self.M_["hp"][start:end] = self.db_.loc[u, "HP"]
+        for i, (u, n, (start, end), dist) in enumerate(zip(self._unit_roster, self._unit_n, self._segments, self.D_)):
+            # set S values.
+            self.S_['utype'][i] = np.argwhere(self.db_.index == u).flatten()[0]
+            self.S_['team'][i] = self.db_.loc[u, "allegiance_int"]
+            self.S_["range"][i] = self.db_.loc[u, "Range"]
+            self.S_["speed"][i] = self.db_.loc[u, "Movement Speed"]
+            self.S_["dodge"][i] = self.db_.loc[u, "Miss"] / 100.
+            self.S_["acc"][i] = self.db_.loc[u, "Accuracy"] / 100.
+            self.S_["dmg"][i] = self.db_.loc[u, "Damage"]
+            self.S_["id"][i] = i
+
+            # set mutable M values in larger matrix.
+            self.M_['hp'][start:end] = self.db_.loc[u, "HP"]
             self.M_["armor"][start:end] = self.db_.loc[u, "Armor"]
+            self.M_['team'][start:end] = self.db_.loc[u, "allegiance_int"]
+            self.M_["id"][start:end] = i
+            self.M_['utype'][start:end] = np.argwhere(self.db_.index == u).flatten()[0]
             self.M_["range"][start:end] = self.db_.loc[u, "Range"]
             self.M_["speed"][start:end] = self.db_.loc[u, "Movement Speed"]
             self.M_["dodge"][start:end] = self.db_.loc[u, "Miss"] / 100.
             self.M_["acc"][start:end] = self.db_.loc[u, "Accuracy"] / 100.
             self.M_["dmg"][start:end] = self.db_.loc[u, "Damage"]
 
+        # update positions
         self._initialize_position()
-
-        # modify bounds
+        # modify bounds to reflect new positions.
         self.bounds_ = self._get_bounds_from_M()
 
-        # initialise AIs as nearest.
+        # initialise AIs as nearest by default.
         self.set_initial_ai("nearest")
         self.set_rolling_ai("nearest")
         # main AI options
@@ -415,7 +434,7 @@ class Battle(object):
         -------
         t : str or bsm.Terrain
             Choose from [None, 'grid', 'contour']. Default is None. Contour looks
-            the best. Decides how big/resolution to make the terrain based on the
+            the best. Decides how big/resolution to make the terra based on the
             initialized positions of units.
         res : float
             The resolution to use for the map
@@ -529,12 +548,13 @@ class Battle(object):
         if np.unique(self._teams).shape[0] <= 1:
             warnings.warn("Simulation halted - There is only one team present.", UserWarning)
             return self.sim_
-        # set the flat terrain if it doesn't exist
+        # set the flat terra if it doesn't exist
         self.T_.generate()
         # firstly assign initial AI targets.
         self._assign_initial_targets()
         # we cache a copy of the sim as well for convenience
         self._sim = sim_battle(np.copy(self.M_),
+                               np.copy(self.S_),
                                self.T_,
                                self._rolling_map,
                                self._decision_map,
@@ -572,7 +592,7 @@ class Battle(object):
                 return self.sim_
 
             runs = np.zeros((k, 2), dtype=np.int64)
-            # generate new terrain
+            # generate new terra
             self.T_.generate()
             for i in range(k):
                 # firstly assign initial AI targets.

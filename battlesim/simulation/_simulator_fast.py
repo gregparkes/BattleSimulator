@@ -10,7 +10,7 @@ This class handles the primary simulator functions given some data.
 import pandas as pd
 import numpy as np
 
-from . import _jitcode
+from battlesim import _mathutils
 
 ############################################################################
 
@@ -22,18 +22,18 @@ def frame_columns():
     return "army", "allegiance", "alive", "armor", "hp", "x", "y", "dir_x", "dir_y"
 
 
-def _copy_frame(Frames, M, i):
+def _copy_frame(Frames, M, S, i):
     # copy over data from M into frames.
     Frames["frame"][i] = i
     Frames["x"][i] = M["x"]
     Frames["y"][i] = M["y"]
     Frames["target"][i] = M["target"]
-    Frames["hp"][i] = M["hp"]
-    Frames["armor"][i] = M["armor"]
+    Frames["hp"][i] = np.clip(M["hp"], a_min=0, a_max=None)
+    Frames["armor"][i] = np.clip(M["armor"], a_min=0, a_max=None)
     # create direction norm
     dx = M["x"][M['target']] - M['x']
     dy = M["y"][M['target']] - M['y']
-    dist = _jitcode.euclidean_distance2(dx, dy)
+    dist = _mathutils.euclidean_distance(dx, dy)
     # now store in two vars ( preventing dist=0 for errors)
     Frames['ddx'][i] = dx / (dist + 1e-12)
     Frames['ddy'][i] = dy / (dist + 1e-12)
@@ -64,6 +64,7 @@ def _convert_to_pandas(frames):
 
 
 def simulate_battle(M,
+                    S,
                     terrain,
                     target_map,
                     decision_map,
@@ -85,6 +86,8 @@ def simulate_battle(M,
     --------
     M : np.ndarray (units, )
         A heterogenous matrix containing data values for units
+    S : np.ndarray (armies,)
+        Static data describing fixed variables.
     terrain : bsm.Terrain object
         Terrain object containing the bounds.
     target_map : dict
@@ -118,20 +121,20 @@ def simulate_battle(M,
     if ret_frames:
         frames = np.zeros(
             (max_step + 1, M.shape[0]),
-            dtype=[("frame", np.int64), ("x", np.float32), ("y", np.float32), ("target", np.int32),
-                   ("hp", np.float32), ("armor", np.float32), ("ddx", np.float32), ("ddy", np.float32),
-                   ("team", np.uint8), ("utype", np.uint8)
-            ]
+            dtype=np.dtype([("frame", "u2"), ("x", "f4"), ("y", "f4"), ("target", "u4"),
+                            ("hp", "f4"), ("armor", "f4"), ("ddx", "f4"), ("ddy", "f4"),
+                            ("team", "u1"), ("utype", "u1")
+                            ], align=True)
         )
 
     while (t < max_step) and running:
 
         # copy a frame
         if ret_frames:
-            _copy_frame(frames, M, t)
+            _copy_frame(frames, M, S, t)
 
         # perform a boundary check.
-        _jitcode.boundary_check(xmin, xmax, ymin, ymax, M["x"], M['y'])
+        _mathutils.boundary_check(xmin, xmax, ymin, ymax, M["x"], M['y'])
         # list of indices per unit for which tile they are sitting on (X, Y)
         X_t_ind = np.argmin(np.abs(M["x"] - X_m), axis=0)
         Y_t_ind = np.argmin(np.abs(M["y"] - Y_m), axis=0)
@@ -139,7 +142,7 @@ def simulate_battle(M,
         """# pre-compute the direction derivatives and magnitude/distance for each unit to it's target in batch."""
         dx = M['x'][M['target']] - M['x']
         dy = M['y'][M['target']] - M['y']
-        dists = _jitcode.euclidean_distance2(dx, dy)
+        dists = _mathutils.euclidean_distance(dx, dy)
         """precompute enemy and ally target listings"""
         enemy_targets = [np.argwhere((M["hp"] > 0) & (M["team"] != T)).flatten() for T in teams]
         ally_targets = [np.argwhere((M["hp"] > 0) & (M["team"] == T)).flatten() for T in teams]
@@ -177,7 +180,8 @@ def simulate_battle(M,
         t += 1
 
     if ret_frames:
-        _copy_frame(frames, M, t)
-        return _convert_to_pandas(frames[:t])
+        _copy_frame(frames, M, S, t)
+        # return _convert_to_pandas(frames[:t])
+        return frames[:t]
     else:
         return np.asarray([np.argwhere((M["hp"] > 0) & (M["team"] == T)).flatten().shape[0] for T in teams])

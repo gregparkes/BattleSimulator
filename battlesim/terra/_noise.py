@@ -4,7 +4,7 @@
 
 @author: gparkes
 
-This file contains perlin noise functions for terrain.
+This file contains perlin noise functions for terra.
 """
 
 import numpy as np

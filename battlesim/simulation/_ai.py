@@ -7,9 +7,7 @@ Created on Tue Oct  8 11:07:18 2019
 """
 from numba import njit
 
-from . import _move
-from . import _hit
-from . import _damage
+from . import _damage, _hit, _move
 
 
 def get_function_names():
@@ -31,25 +29,16 @@ __all__ = get_function_names()
 
 """
 Parameters:
-    pos: (np.ndarray, (n, 2), float all) positions of every unit
-    speed: (np.ndarray, (n,) float all) base speed of every unit
-    mrange: (np.ndarray, (n,) float all) base range of every unit
-    acc: (np.ndarray, (n,) float all) accuracy of every unit
-    dodge: (np.ndarray, (n,) float all) dodge of every unit
-    target: (np.ndarray, (n,) int all) id of every target
-    dmg: (np.ndarray, (n,) float all) base damage of every unit
-    hp: (np.ndarray, (n,) float all) current HP of every unit
-    armor: (np.ndarray, (n,) float all) current armor of enemy unit
+    M: heterogeneous np.ndarray (from battle object)
     luck: (np.ndarray, (n,2) float all) luck roll of every unit
     distances: (np.ndarray, (n,) float all) unit distance to target
     dd: (np.ndarray, (n,) float all) directional derivative to target
-    team: (np.ndarray, (n, ) int all) team ID of every unit
     target_f: (function) target function.
     enemies: (np.ndarray, (e,) int all) IDs of every enemy unit
     allies: (np.ndarray, (a,) int all) IDs of every allied unit
-    Z: (np.ndarray, (res, res) float all) the terrain of the map
-    Z_xi: (np.ndarray, (n,) int all) the x-index of Z-terrain tile
-    Z_yi: (np.ndarray, (n,) int all) the y-index of Z-terrain tile
+    Z: (np.ndarray, (res, res) float all) the terra of the map
+    Z_xi: (np.ndarray, (n,) int all) the x-index of Z-terra tile
+    Z_yi: (np.ndarray, (n,) int all) the y-index of Z-terra tile
     i : (int) the current unit's index
 """
 
@@ -67,7 +56,7 @@ def _height_modification(h):
 def _select_enemy(M, f_t, enemies, allies, i):
     if M['hp'][M['target'][i]] <= 0:
         if enemies.shape[0] > 0:
-            t = f_t(M['x'], M['y'], M['hp'], enemies, allies, i)
+            t = f_t(M, enemies, allies, i)
             if t != -1:
                 M['target'][i] = t
                 return True
@@ -81,7 +70,7 @@ def _select_enemy(M, f_t, enemies, allies, i):
 
 @njit
 def _rng_terr(mrange, Z, Z_xi, Z_yi, i):
-    """ The range of the unit, modified by the terrain measurement. Returns float. """
+    """ The range of the unit, modified by the terra measurement. Returns float. """
     return mrange[i] * _height_modification(Z[Z_xi[i], Z_yi[i]])
 
 
@@ -100,6 +89,8 @@ def aggressive(M, luck, dists, dx, dy, target_f,
     This basic AI looks whether the current unit i is in range of it's target'
     and if it isn't, moves towards it until it is, then attacks.
     """
+    # compute z_i
+    zi = Z[Z_xi[i], Z_yi[i]]
 
     """# use ai_map to dictionary-map the group number to the appropriate AI function"""
     if _select_enemy(M, target_f, enemies, allies, i):
@@ -161,9 +152,8 @@ def hit_and_run(M, luck, dists, dx, dy, target_f,
         return False
 
 
-def defensive(pos, speed, mrange, acc, dodge, targets,
-              dmg, hp, armor, luck, distances, dd, team, target_f,
-              enemies, allies, Z, Z_xi, Z_yi, i):
+def defensive(M, luck, dists, dx, dy, target_f,
+                enemies, allies, Z, Z_xi, Z_yi, i):
     """
     This AI option attempts to find a nearby high hill and sit on it, waiting for
     a nearby enemy.
