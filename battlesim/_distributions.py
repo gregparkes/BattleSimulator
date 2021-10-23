@@ -6,7 +6,6 @@ Created on Mon Jul  8 12:13:53 2019
 @author: gparkes
 """
 import numpy as np
-from scipy import stats
 
 __all__ = ["Distribution"]
 
@@ -84,7 +83,7 @@ class Distribution(object):
         if self.dist_ is not None:
             self._option_i = self.options_["names"].index(self.dist_)
         else:
-            self.dist_ = "norm"
+            self.dist_ = "normal"
             self._option_i = 3
 
     def _from_dict(self, **kws):
@@ -206,22 +205,32 @@ class Distribution(object):
     def options_(self):
         """A clunky dictionary with the total options."""
         return {
-            "names": ["uniform", 'gamma', 'beta', 'norm', 'laplace', 'exp', 'chi'],
-            "funcs": [stats.uniform, stats.gamma, stats.beta, stats.norm, stats.laplace,
-                      stats.expon, stats.chi],
+            "names": ["uniform", 'gamma', 'beta', 'normal', 'laplace', 'exponential', 'chisquare'],
+            "funcs": [np.random.uniform, np.random.gamma, np.random.beta, np.random.normal, np.random.laplace,
+                      np.random.exponential, np.random.chisquare],
             # a dictionary to map alternative names used.
-            "name_maps": {"gaussian": "norm", "normal": "norm", "expon": "exp", "unif": "uniform"},
+            "name_maps": {"gaussian": "normal", "norm": "normal", "expon": "exponential", "exp": "exponential"},
             # default params
             "def_params": [
-                {'loc': 0., 'scale': 1.}, {"a": 2., "loc": 0., "scale": 1.}, {"a": .5, "b": .5, "loc": 0., "scale": 1.},
-                {"loc": 0., "scale": 1.}, {"loc": 0., "scale": 1.}, {"loc": 0., "scale": 1.},
-                {"df": 1, "loc": 0., "scale": 1.}
+                # uniform
+                {'low': 0., 'high': 1.},
+                # gamma
+                {"k": 2., "scale": 1.},
+                # beta
+                {"a": .5, "b": .5},
+                # normal
+                {"loc": 0., "scale": 1.},
+                # laplace
+                {"loc": 0., "scale": 1.},
+                # exp
+                {"scale": 1.},
+                # chisq
+                {"df": 1}
             ],
             # accepted params
-            "acc_params": [("loc", "scale"), ("a", "loc", "scale"),
-                           ("a", "b", "loc", "scale"), ("loc", "scale"), ("loc", "scale"),
-                           ("loc", "scale"), ("df", "loc", "scale")
-                           ]
+            "acc_params": [("low", "high"), ("k", "scale"),
+                           ("a", "b"), ("loc", "scale"), ("loc", "scale"),
+                           ("scale"), ("df")]
         }
 
     def setx(self, **x):
@@ -255,9 +264,13 @@ class Distribution(object):
             S represents np.ndnarray matrix of positions.
         """
         S = np.zeros((size, 2), dtype=np.float_)
-        S[:, 0] = self._dist_func(**self.x_param_).rvs(size=size)
-        S[:, 1] = self._dist_func(**self.y_param_).rvs(size=size)
+        S[:, 0] = self._dist_func(**self.x_param_, size=size)
+        S[:, 1] = self._dist_func(**self.y_param_, size=size)
         return S
+
+    def sample_xy(self, size):
+        """Sample `size` points from x and y distribution and return separately."""
+        return self._dist_func(**self.x_param_, size=size), self._dist_func(**self.y_param_, size=size)
 
     def __repr__(self):
         return "{}: x={}, y={}".format(self.dist_, self.x_param_, self.y_param_)

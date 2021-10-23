@@ -7,9 +7,10 @@ Created on Tue Feb 19 15:48:25 2019
 
 This class handles the primary simulator functions given some data.
 """
-import pandas as pd
 import numpy as np
+from numba import jit, njit, typed
 
+from battlesim.simulation import _ai as AI
 from battlesim import _mathutils
 
 ############################################################################
@@ -22,18 +23,15 @@ def frame_columns():
     return "army", "allegiance", "alive", "armor", "hp", "x", "y", "dir_x", "dir_y"
 
 
-def _copy_frame(Frames, M, S, i):
+@njit
+def _copy_frame(Frames, M, S, dx, dy, dist, i):
     # copy over data from M into frames.
-    Frames["frame"][i] = i
     Frames["x"][i] = M["x"]
     Frames["y"][i] = M["y"]
     Frames["target"][i] = M["target"]
-    Frames["hp"][i] = np.clip(M["hp"], a_min=0, a_max=None)
-    Frames["armor"][i] = np.clip(M["armor"], a_min=0, a_max=None)
+    Frames["hp"][i] = M["hp"]
+    Frames["armor"][i] = M["armor"]
     # create direction norm
-    dx = M["x"][M['target']] - M['x']
-    dy = M["y"][M['target']] - M['y']
-    dist = _mathutils.euclidean_distance(dx, dy)
     # now store in two vars ( preventing dist=0 for errors)
     Frames['ddx'][i] = dx / (dist + 1e-12)
     Frames['ddy'][i] = dy / (dist + 1e-12)
@@ -42,31 +40,66 @@ def _copy_frame(Frames, M, S, i):
     return
 
 
-def _convert_to_pandas(frames):
-    """
-    Given the 'frames' from fast_simulate_battle, return a pd.Dataframe
-    """
-    steps, units = frames.shape
-    # use frame as index to reduce memory.
-    DF = pd.concat([pd.DataFrame({
-        "army": frames["utype"][s],
-        "allegiance": frames["team"][s],
-        "alive": frames["hp"][s] > 0,
-        "hp": np.clip(frames["hp"][s], a_min=0., a_max=None),
-        "armor": np.clip(frames["armor"][s], a_min=0, a_max=None),
-        "x": frames["x"][s],
-        "y": frames["y"][s],
-        "dir_x": frames["ddx"][s],
-        "dir_y": frames["ddy"][s]
-    }, index=frames["frame"][s]) for s in range(steps)])
-    DF.index.name = "frame"
-    return DF
+@jit
+def _loop_units(M,
+                luck,
+                dists,
+                dx,
+                dy,
+                enemy_targets,
+                ally_targets,
+                Z_m):
+    """ Loops over the units and executes the function. """
+    running = True
+
+    for i in range(M.shape[0]):
+
+        if M['hp'][i] > 0.:
+            # fetch the function 'hit_and_run', 'aggressive' in `_ai.py`, etc.
+            # AI-based decision for attack/defend.
+            k = M['ai_func_index'][i]
+            if k == 0:
+                running = AI.aggressive(
+                    # the main data matrix.
+                    M,
+                    # calculated 'luck' rolls for round
+                    luck,
+                    # euclidean distance to targets
+                    dists,
+                    # directional derivatives to targets
+                    dx, dy,
+                    # group indices (targets to i, enemies of i, allies of i)
+                    enemy_targets[M['team'][i]],
+                    ally_targets[M['team'][i]],
+                    # variables to do with terrain.
+                    Z_m,
+                    # current unit under examination - index.
+                    i
+                )
+            elif k == 1:
+                running = AI.hit_and_run(
+                    # the main data matrix.
+                    M,
+                    # calculated 'luck' rolls for round
+                    luck,
+                    # euclidean distance to targets
+                    dists,
+                    # directional derivatives to targets
+                    dx, dy,
+                    # group indices (targets to i, enemies of i, allies of i)
+                    enemy_targets[M['team'][i]],
+                    ally_targets[M['team'][i]],
+                    # variables to do with terrain.
+                    Z_m,
+                    # current unit under examination - index.
+                    i
+                )
+    return running
 
 
 def simulate_battle(M,
                     S,
                     terrain,
-                    target_map,
                     decision_map,
                     max_step=100,
                     ret_frames=True):
@@ -110,77 +143,46 @@ def simulate_battle(M,
     # unpack bounds
     xmin, xmax, ymin, ymax = terrain.bounds_
 
-    # flatten X, Y
-    X_m, Y_m = terrain.get_flat_grid()
-    # repeat X_m, Y_m for n units.
-    X_m = np.repeat(X_m, M.shape[0]).reshape(X_m.shape[0], M.shape[0])
-    Y_m = np.repeat(Y_m, M.shape[0]).reshape(Y_m.shape[0], M.shape[0])
-    # height
-    Z_m = terrain.Z_
-
     if ret_frames:
         frames = np.zeros(
             (max_step + 1, M.shape[0]),
-            dtype=np.dtype([("frame", "u2"), ("x", "f4"), ("y", "f4"), ("target", "u4"),
+            dtype=np.dtype([("x", "f4"), ("y", "f4"), ("target", "u4"),
                             ("hp", "f4"), ("armor", "f4"), ("ddx", "f4"), ("ddy", "f4"),
-                            ("team", "u1"), ("utype", "u1")
+                            ("xtile", "u4"), ("ytile", "u4"), ("team", "u1"), ("utype", "u1")
                             ], align=True)
         )
 
+    #_dec_map = typed.List([AI.aggressive, AI.hit_and_run])
+
     while (t < max_step) and running:
-
-        # copy a frame
-        if ret_frames:
-            _copy_frame(frames, M, S, t)
-
-        # perform a boundary check.
+        """# perform a boundary check."""
         _mathutils.boundary_check(xmin, xmax, ymin, ymax, M["x"], M['y'])
-        # list of indices per unit for which tile they are sitting on (X, Y)
-        X_t_ind = np.argmin(np.abs(M["x"] - X_m), axis=0)
-        Y_t_ind = np.argmin(np.abs(M["y"] - Y_m), axis=0)
-
+        # lerp to update all units tile position
+        M['xtile'] = np.interp(M['x'], [xmin, xmax], [0., terrain.Z_.shape[0]]).astype(np.uint16)
+        M['ytile'] = np.interp(M['y'], [ymin, ymax], [0., terrain.Z_.shape[1]]).astype(np.uint16)
         """# pre-compute the direction derivatives and magnitude/distance for each unit to it's target in batch."""
         dx = M['x'][M['target']] - M['x']
         dy = M['y'][M['target']] - M['y']
         dists = _mathutils.euclidean_distance(dx, dy)
         """precompute enemy and ally target listings"""
-        enemy_targets = [np.argwhere((M["hp"] > 0) & (M["team"] != T)).flatten() for T in teams]
-        ally_targets = [np.argwhere((M["hp"] > 0) & (M["team"] == T)).flatten() for T in teams]
+        enemy_targets = typed.List([np.argwhere((M["hp"] > 0.) & (M["team"] != T)).flatten() for T in teams])
+        ally_targets = typed.List([np.argwhere((M["hp"] > 0.) & (M["team"] == T)).flatten() for T in teams])
         """# pre-compute the 'luck' of each unit with random numbers."""
         round_luck = np.random.rand(M.shape[0])
 
-        # iterate over units and check their life, target.
-        for i in range(M.shape[0]):
-            if M["hp"][i] > 0.:
-                # fetch the function 'hit_and_run', 'aggressive' in `_ai.py`, etc.
-                dm = decision_map[M["group"][i]]
-                # AI-based decision for attack/defend.
-                running = (dm(
-                    # """The reason why the variables within M are split up is in a previous version,
-                    #                     numba did not support this set up of numpy array. It now does!
-                    #                     """
-                    # the main data matrix.
-                    M,
-                    # calculated 'luck' rolls for round
-                    round_luck,
-                    # euclidean distance to targets
-                    dists,
-                    # directional derivatives to targets
-                    dx, dy,
-                    # group indices (targets to i, enemies of i, allies of i)
-                    target_map[M["group"][i]],
-                    enemy_targets[M["team"][i]],
-                    ally_targets[M["team"][i]],
-                    # variables to do with terrain.
-                    Z_m, X_t_ind, Y_t_ind,
-                    # current unit under examination - index.
-                    i
-                ))
+        # copy a frame
+        if ret_frames:
+            _copy_frame(frames, M, S, dx, dy, dists, t)
+
+        # iterate over units and call AI function.
+        running = _loop_units(M, round_luck, dists, dx, dy,
+                              enemy_targets,
+                              ally_targets,
+                              terrain.Z_)
 
         t += 1
 
     if ret_frames:
-        _copy_frame(frames, M, S, t)
         # return _convert_to_pandas(frames[:t])
         return frames[:t]
     else:

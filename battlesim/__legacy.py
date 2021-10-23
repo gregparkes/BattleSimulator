@@ -9,7 +9,6 @@ Created on Fri Oct  4 15:34:25 2019
 import matplotlib.pyplot as plt
 from matplotlib import animation
 import numpy as np
-import pandas as pd
 import itertools as it
 import random
 import time

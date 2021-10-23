@@ -86,7 +86,7 @@ def test_apply_position():
     with pytest.raises(ValueError):
         b.apply_position("fake")
 
-    b.apply_position("exp")
+    b.apply_position("exponential")
     # check distribution using KS-test > 0.05
     assert kstest(b.M_["x"], "expon")[1] > 0.05, "P-value for KS-test not > 0.05, fail"
     assert kstest(b.M_["y"], "expon")[1] > 0.05, "P-value for KS-test not > 0.05, fail"
@@ -185,8 +185,4 @@ def test_simulate():
     F = b.simulate()
     # check presense of b.sim_
     assert b.sim_ is not None, "simulation object should be present and isnt"
-    assert type(F) is pd.DataFrame, "must be of type pd.DataFrame for F"
-
-    # check columns
-    for c in F.columns:
-        assert c in bsm._simulator_fast.frame_columns(), "column '{}' not in df.columnset".format(c)
+    assert type(F) is np.ndarray, "must be of type np.ndarray for F"

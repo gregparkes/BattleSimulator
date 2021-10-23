@@ -4,6 +4,7 @@
 Responsible for creating a Battle object.
 """
 
+import itertools as it
 import numpy as np
 import pandas as pd
 import warnings
@@ -12,7 +13,6 @@ from typing import Dict, Union, Tuple, Callable, List
 from . import utils
 from .plot import quiver_fight, loop_colors
 from .simulation import _ai as AI, _target
-from . import _unit_quant as UnitQuant
 from .__defaults import default_db
 from battlesim.simulation._simulator_fast import simulate_battle as sim_battle
 from ._distributions import Distribution
@@ -67,7 +67,8 @@ class Battle(object):
         return np.zeros(n, dtype=np.dtype([
             ("id", "u4"), ("target", "u4"), ("x", "f4"), ("y", "f4"),
             ("hp", "f4"), ("armor", "f4"), ("dmg", "f4"), ("range", "f4"), ("speed", "f4"),
-            ("acc", "f4"), ("dodge", "f4"), ("group", "u1"), ("utype", "u1"), ("team", "u1"),
+            ("acc", "f4"), ("dodge", "f4"), ("xtile", "u2"), ("ytile", "u2"),
+            ("utype", "u1"), ("team", "u1"), ("ai_func_index", "u1")
         ], align=True))
 
     @staticmethod
@@ -108,22 +109,20 @@ class Battle(object):
     def _plot_simulation(self, func: Callable):
         labels = self.allegiances_.to_dict()
         cols = utils.slice_loop(loop_colors(), len(self.allegiances_))
-        # quantify size by value
-        qscore = UnitQuant.rank_score(self.db_).reset_index(drop=True).to_dict()
-
         # call plotting function - with or without terra
         if self.T_ is not None:
-            Q = func(self.sim_, self.T_, labels, cols, qscore)
+            Q = func(self.sim_, self.T_, labels, cols)
         else:
-            Q = func(self.sim_, None, labels, cols, qscore)
+            Q = func(self.sim_, None, labels, cols)
         return Q
 
     def _initialize_position(self):
         """ Given self.D_, instantiation, we should be able to map positions """
         self._is_instantiated()
         for i, (u, n, (start, end), dist) in enumerate(zip(self._unit_roster, self._unit_n, self._segments, self.D_)):
-            self.M_["x"][start:end] = dist._dist_func(**dist.x_param_).rvs(size=n)
-            self.M_["y"][start:end] = dist._dist_func(**dist.y_param_).rvs(size=n)
+            sampx, sampy = dist.sample_xy(n)
+            self.M_["x"][start:end] = sampx
+            self.M_["y"][start:end] = sampy
 
     def _get_bounds_from_M(self):
         xmin, xmax = self.M_["x"].min(), self.M_["x"].max()
@@ -349,6 +348,8 @@ class Battle(object):
         # capture distributions
         self._D = [Distribution("normal", loc=i * 2., scale=1.) for i in range(self.n_armies_)]
 
+        decision_ai_map = dict(zip(AI.get_function_names(), it.count()))
+
         # set initial values.
         for i, (u, n, (start, end), dist) in enumerate(zip(self._unit_roster, self._unit_n, self._segments, self.D_)):
             # set S values.
@@ -372,6 +373,8 @@ class Battle(object):
             self.M_["dodge"][start:end] = self.db_.loc[u, "Miss"] / 100.
             self.M_["acc"][start:end] = self.db_.loc[u, "Accuracy"] / 100.
             self.M_["dmg"][start:end] = self.db_.loc[u, "Damage"]
+            # ai func index (0 = aggressive, 1 = hit_and_run)
+            self.M_['ai_func_index'][start:end] = decision_ai_map['aggressive']
 
         # update positions
         self._initialize_position()
@@ -549,14 +552,14 @@ class Battle(object):
             warnings.warn("Simulation halted - There is only one team present.", UserWarning)
             return self.sim_
         # set the flat terra if it doesn't exist
-        self.T_.generate()
+        if self.T_.Z_ is None:
+            self.T_.generate()
         # firstly assign initial AI targets.
         self._assign_initial_targets()
         # we cache a copy of the sim as well for convenience
         self._sim = sim_battle(np.copy(self.M_),
                                np.copy(self.S_),
                                self.T_,
-                               self._rolling_map,
                                self._decision_map,
                                ret_frames=True,
                                **kwargs)
@@ -599,8 +602,8 @@ class Battle(object):
                 self._assign_initial_targets()
                 # run simulation
                 team_counts = sim_battle(np.copy(self.M_),
+                                         np.copy(self.S_),
                                          self.T_,
-                                         self._rolling_map,
                                          self._decision_map,
                                          ret_frames=False,
                                          **kwargs)

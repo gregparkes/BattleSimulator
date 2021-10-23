@@ -5,6 +5,7 @@ Created on Fri Feb 22 14:30:45 2019
 
 @author: gparkes
 """
+from functools import reduce
 import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib import animation
@@ -25,12 +26,10 @@ def loop_colors():
             "cyan", "yellow")
 
 
-def quiver_fight(frames,
+def quiver_fight(frames: np.ndarray,
                  terrain=None,
-                 verbose=0,
                  allegiance_label={},
-                 allegiance_color={},
-                 quant_size_map={}):
+                 allegiance_color={}):
     """
     Generates an animated quiver plot with units moving around the arena
     and attacking each other. Requires the Frames object as output from a 'battle.simulate()'
@@ -53,26 +52,23 @@ def quiver_fight(frames,
         maps allegiance in Frames["allegiance"] (k) to a label str (v)
     allegiance_color : dict
         maps allegiance in Frames["allegiance"] (k) to a color str (v)
-    quant_size_map : dict
-        If True, use unit_quant to estimate unit value then set this size to quivers.
 
     Returns
     ------
     anim : matplotlib.pyplot.animation
         object to animate then from.
     """
-    check_columns(frames, frame_columns())
-
     # set plt.context
     plt.rcParams["animation.html"] = "jshtml"
     # plt.rcParams['animation.writer'] = 'pillow'
     # dataframe
-    N_frames = frames.index.unique().shape[0]
+    N_frames = frames.shape[0]
     # create plot
     fig = plt.figure(figsize=(8, 6))
     ax = fig.add_subplot(111)
     # plot the terra underneath
     if terrain is not None:
+        # plots the terrain using the object.
         terrain.plot(ax, alpha=.2)
 
     # hide axes labels
@@ -80,19 +76,18 @@ def quiver_fight(frames,
     ax.get_yaxis().set_visible(False)
 
     # use the numerical allegiance.
-    allegiances = frames["allegiance"].unique()
-    # create defaults if the dictionary size does not match the allegiance flags
-    if len(allegiance_label) != allegiances.shape[0]:
-        allegiance_label = dict(zip(allegiances.tolist(),
-                                    ["team%d" % i for i in it.islice(it.count(1), 0, allegiances.shape[0])]))
-    if len(allegiance_color) != allegiances.shape[0]:
-        allegiance_color = dict(zip(allegiances.tolist(),
-                                    slice_loop(loop_colors(), allegiances.shape[0])))
-    # unique units.
-    Uunits = frames["army"].unique()
-    if len(quant_size_map) == 0:
-        quant_size_map = {k: 1 for k in Uunits}
+    allegiances = np.unique(frames["team"])
+    n_allegiances = allegiances.shape[0]
 
+    # create defaults if the dictionary size does not match the allegiance flags
+    if len(allegiance_label) != n_allegiances:
+        allegiance_label = dict(zip(allegiances.tolist(),
+                                    ["team%d" % i for i in it.islice(it.count(1), 0, n_allegiances)]))
+    if len(allegiance_color) != n_allegiances:
+        allegiance_color = dict(zip(allegiances.tolist(),
+                                    slice_loop(loop_colors(), n_allegiances)))
+    # unique units.
+    Uunits = np.unique(frames['utype'])
     combs = list(it.product(allegiances, Uunits))
 
     """
@@ -105,9 +100,10 @@ def quiver_fight(frames,
     dead = []
 
     for a, un in combs:
-        f1 = frames.loc[0].query("(allegiance==@a) & (army==@un) & alive")
-        team_alive = ax.quiver(f1.x, f1.y, f1.dir_x, f1.dir_y, color=allegiance_color[a], alpha=.5,
-                               scale=30 * (quant_size_map[un] + 1.), width=0.015, pivot="mid")
+        f1 = frames[0][reduce(np.logical_and, [frames[0]['hp'] > 0., frames[0]['utype'] == un, frames[0]['team'] == a])]
+        #f1 = frames.loc[0].query("(allegiance==@a) & (army==@un) & alive")
+        team_alive = ax.quiver(f1['x'], f1['y'], f1['ddx'], f1['ddy'], color=allegiance_color[a], alpha=.5,
+                               scale=30, width=0.015, pivot="mid")
         qalive.append(team_alive)
 
         team_dead, = ax.plot([], [], 'x', color=allegiance_color[a], alpha=.2, markersize=5.)
@@ -128,9 +124,10 @@ def quiver_fight(frames,
     def _init():
         for j, (_a, _un) in enumerate(combs):
             # replaced query with loc as it's way faster.
-            new_alive = frames.loc[0].query("(allegiance==@_a) & (army==@_un) & alive")
-            if len(new_alive) > 0:
-                qalive[j].set_UVC(new_alive["dir_x"], new_alive["dir_y"])
+            new_alive = frames[0][reduce(np.logical_and, [frames[0]['hp'] > 0., frames[0]['utype'] == _un, frames[0]['team'] == _a])]
+            #new_alive = frames.loc[0].query("(allegiance==@_a) & (army==@_un) & alive")
+            if new_alive.shape[0] > 0:
+                qalive[j].set_UVC(new_alive["ddx"], new_alive["ddy"])
 
         return (*qalive, *dead)
 
@@ -139,13 +136,18 @@ def quiver_fight(frames,
         # i is the frame, aligns with frames.
         for j, (_a, _un) in enumerate(combs):
             # replaced query with loc as it's way faster.
-            new_alive = frames.loc[i].query("(allegiance == @_a) & (alive) & (army == @_un)")
-            new_dead = frames.loc[i].query("(allegiance == @_a) & (not alive) & (army == @_un)")
+            alive_i = frames[i]['hp'] > 0.
+            team_type_i = np.logical_and(frames[i]['team'] == _a, frames[i]['utype'] == _un)
+
+            new_alive = frames[i][np.logical_and(team_type_i, alive_i)]
+            new_dead = frames[i][np.logical_and(team_type_i, ~alive_i)]
+            #new_alive = frames.loc[i].query("(allegiance == @_a) & (alive) & (army == @_un)")
+            #new_dead = frames.loc[i].query("(allegiance == @_a) & (not alive) & (army == @_un)")
             if len(new_alive) > 0:
                 qalive[j].set_offsets(np.vstack((new_alive["x"], new_alive["y"])).T)
                 # force N to be number of alive samples to prevent error
                 qalive[j].N = new_alive.shape[0]
-                qalive[j].set_UVC(new_alive["dir_x"], new_alive["dir_y"])
+                qalive[j].set_UVC(new_alive["ddx"], new_alive["ddy"])
             if len(new_dead) > 0:
                 dead[j].set_data(new_dead["x"], new_dead["y"])
 

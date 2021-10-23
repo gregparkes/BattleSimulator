@@ -24,17 +24,21 @@ def quiver_frame(xpd, frame_i=0):
     ax.set_ylim(xpd.y.min() - 1., xpd.y.max() + 1.)
     ax.set_xlabel("x")
     ax.set_ylabel("y")
-    frame0 = xpd.query("(frame==@frame_i) & alive")
-    ax.quiver(frame0.query("allegiance==0").x,
-              frame0.query("allegiance==0").y,
-              frame0.query("allegiance==0").dir_x,
-              frame0.query("allegiance==0").dir_y,
+
+    frame0_r = xpd[0][np.logical_and(xpd[0]['hp'] > 0, xpd[0]['team'] == 0)]
+    frame0_c = xpd[0][np.logical_and(xpd[0]['hp'] > 0, xpd[0]['team'] == 1)]
+
+    #frame0 = xpd.query("(frame==@frame_i) & alive")
+    ax.quiver(frame0_r['x'],
+              frame0_r['y'],
+              frame0_r['ddx'],
+              frame0_r['ddy'],
               color="red", label="Republic", alpha=.5,
               scale=30, width=0.015, pivot="mid")
-    ax.quiver(frame0.query("allegiance==1").x,
-              frame0.query("allegiance==1").y,
-              frame0.query("allegiance==1").dir_x,
-              frame0.query("allegiance==1").dir_y,
+    ax.quiver(frame0_c['x'],
+              frame0_c['y'],
+              frame0_c['ddx'],
+              frame0_c['ddy'],
               color="blue", label="CIS", alpha=.5, scale=30,
               width=0.015, pivot="mid")
     ax.legend(loc="best")

@@ -1,5 +1,6 @@
 """ Various utilities for fast computation of things within the simulation. """
 
+import math
 import numpy as np
 from numba import njit, prange
 
@@ -72,3 +73,9 @@ def minmax(X):
 def no_mean(X):
     """ Remove the mean from every value in X. """
     return X - np.mean(X)
+
+
+@njit
+def lerp(a1, a2, b1, b2, t):
+    """Linearly interpolates t from [a1, a2] domain into [b1, b2] domain, truncating to int. """
+    return a2 + (t - a1) * ((b2 - a2) / (b1 - a1))

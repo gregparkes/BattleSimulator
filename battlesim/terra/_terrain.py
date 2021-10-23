@@ -10,7 +10,6 @@ This can be fixed size or infinite if it follows some mathematical function.
 """
 import numpy as np
 from matplotlib.pyplot import subplots
-from scipy.stats import multivariate_normal
 from typing import Optional, Tuple
 
 from battlesim._mathutils import minmax
@@ -22,41 +21,6 @@ def get_tile_size(dim: Tuple[float, float, float, float],
                   res: float):
     """Returns the tile size of the resolution."""
     return int(np.abs(dim[0] - dim[1]) // res), int(np.abs(dim[2] - dim[3]) // res)
-
-
-def _generate_random_gauss(pos: np.ndarray,
-                           dim: Tuple[float, float, float, float]):
-    def lm(x, sl, b):
-        """Linear model function."""
-        return x * sl + b
-
-    # fetch dimensions
-    xmin, xmax, ymin, ymax = dim
-    Nx = (xmax - xmin)
-    Ny = (ymax - ymin)
-    # scaling factors
-    # perfect scaling factor based on linear model y=mx + b
-    x_n = np.arange(0, 300, 5)
-    y_n = np.linspace(5, 3, 60)
-    coef = np.polyfit(x_n, y_n, deg=1)
-    # calculate scaling factor from formula
-    sx = Nx / lm(Nx, coef[0], coef[1])
-    sy = Ny / lm(Ny, coef[0], coef[1])
-
-    # print(sx, sy)
-    # define mean
-    m = np.random.rand(2) * np.array([Nx, Ny]) + np.array([xmin, ymin])
-    # Diagonal elements for covariance matrix
-    D = np.random.rand(2) + np.array([4., 1.5])
-    # random choice to invert cov
-    R = np.random.choice([1., -1.])
-    # construct covariance
-    C = np.array([[D[0] * sx, D[1] * R], [D[1] * R, D[0] * sy]])
-
-    #print(m, C)
-    # use scipy.stats
-    z = multivariate_normal(m, C).pdf(pos)
-    return z
 
 
 class Terrain:
@@ -94,7 +58,7 @@ class Terrain:
                 -contour applies a function z = f(x, y) or random and plots filled-contours of the background.
                 -None defines a flat grid with no height penalties.
         dtype : str
-            Defines which function to use to generate noise map.
+            Defines which function to use to generate noise map. Only `perlin` is currently implemented.
         """
         self.form_ = form
         self.bounds_ = dim
@@ -157,22 +121,6 @@ class Terrain:
         return (int((self.bounds_[1] - self.bounds_[0]) / self.res_),
                 int((self.bounds_[3] - self.bounds_[2]) / self.res_))
 
-    def _generate_random_terrain(self, n_gauss: int = 3):
-        # define meshgrid
-        X, Y = self.get_grid()
-
-        # create empty positions
-        pos = np.empty(X.shape + (2,))
-        pos[:, :, 0] = X
-        pos[:, :, 1] = Y
-
-        Z_cont = np.stack(([_generate_random_gauss(pos, self.bounds_) for _ in range(n_gauss)]), axis=2)
-
-        # add probabilities
-        Z = Z_cont.sum(axis=2)
-        # scale between 0 and 1 and return
-        return minmax(Z)
-
     def __repr__(self):
         return "Terrain(init={}, dtype='{}', dims={}, resolution={:0.3f})".format(
             self.Z_ is not None, self.dtype, self.bounds_, self.res_)
@@ -190,7 +138,7 @@ class Terrain:
         # they are repeats, return single.
         return X[:, 0], Y[0, :]
 
-    def generate(self, f=None, n_random: int = 50):
+    def generate(self, f=None):
         """
         Generates the terra using a function.
 
@@ -198,8 +146,6 @@ class Terrain:
         ----------
         f : function or None
             If None, uses 'random', else uses a map_function if ['grid', 'contour']
-        n_random : int, optional
-            The number of random gaussians to generate.
 
         Returns
         -------
@@ -209,13 +155,8 @@ class Terrain:
         if self.form_ is None:
             self._Z = np.zeros(self._m_size())
         if f is None:
-            if self.dtype == 'gauss':
-                self._Z = self._generate_random_terrain(n_random)
-            elif self.dtype == "perlin":
-                dx, dy = self._m_size()
-                self._Z = minmax(create_perlin_map(dx, dy, scale=dx // 3))
-            else:
-                raise TypeError(f"'dtype' must be one of ['gauss', 'perlin'] not {self.dtype}")
+            dx, dy = self._m_size()
+            self._Z = minmax(create_perlin_map(dx, dy, scale=dx // 3))
         elif callable(f):
             self._Z = minmax(f(*self.get_grid()))
         else:

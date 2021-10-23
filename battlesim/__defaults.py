@@ -5,7 +5,6 @@ Created on Mon Oct 14 14:34:09 2019
 
 @author: gparkes
 """
-from pandas import DataFrame
 from numpy import nan
 
 
@@ -16,7 +15,7 @@ def default_db():
     """
     Returns a primary default database for bsm.Battle
     """
-    return DataFrame({
+    return {
         'Name': {0: 'Local Militia', 1: 'B1 battledroid', 2: 'Clone Trooper', 3: 'B2 battledroid',
                  4: 'ARC Trooper', 5: 'BX-series droid commando', 6: 'Clone Sharpshooter', 7: 'Battle droid assassin',
                  8: 'Clone Commando', 9: 'T-series Tactical Droid', 10: 'Magmaguard'},
@@ -34,4 +33,4 @@ def default_db():
         'Miss': {0: 30, 1: 35, 2: 75, 3: 40, 4: 95, 5: 95, 6: 40, 7: 45, 8: 97, 9: 90, 10: 40},
         'Shield': {0: 0, 1: 0, 2: 0, 3: 0, 4: 0, 5: 0, 6: 0, 7: 0, 8: 30, 9: 100, 10: 0},
         'Shield Regen': {0: 0.0, 1: 0.0, 2: 0.0, 3: 0.0, 4: 0.0, 5: 0.0, 6: 0.0, 7: 0.0, 8: 0.2, 9: 0.18, 10: nan}
-    })
+    }

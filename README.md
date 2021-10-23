@@ -22,7 +22,6 @@ The code for the primary engine is found in `battlesim/`, and implementations/ex
 
 * python (>=3.5)
 * numpy (>=1.11.0)
-* scipy (>=1.3)
 * pandas (>=0.25.1)
 * matplotlib (>=3.1.1)
 * numba (>=0.45)

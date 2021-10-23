@@ -29,7 +29,7 @@ def test_define_distribution():
 
     # working
     bsm.Distribution("normal")
-    bsm.Distribution("exp")
+    bsm.Distribution("exponential")
     bsm.Distribution("laplace")
 
     # parameter name not present

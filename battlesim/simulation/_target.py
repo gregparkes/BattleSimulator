@@ -168,7 +168,10 @@ def global_nearest(x, y, hp, team, group, group_i):
     t = np.unique(team[selector])[0]
     # calculate distance matrix, with offset to ignore diagonal, with random noise
     D = _mathutils.sq_distance_matrix(x, y)
-    D += np.eye(D.shape[0]) * np.max(D) + np.random.rand(D.shape[0], D.shape[0]) / 4.
+    # only calculate for diaginal indices.
+    np.fill_diagonal(D, np.max(D))
+    # sprinkle on random noise
+    D += np.random.rand(D.shape[0], D.shape[0]) / 4.
     # get unit IDs that are not equal to this team for enemies.
     id_not, = np.where(team != t)
     id_is, = np.where(selector)
@@ -185,7 +188,8 @@ def global_close_weak(x, y, hp, team, group, group_i, wtc_ratio=0.7):
 
     # calculate distance matrix, with offset to ignore diagonal, with random noise
     D = _mathutils.sq_distance_matrix(x, y)
-    D += np.eye(D.shape[0]) * np.max(D) + np.random.rand(D.shape[0], D.shape[0]) / 4.
+    np.fill_diagonal(D, np.max(D))
+    D += np.random.rand(D.shape[0], D.shape[0]) / 4.
 
     # return the enemy that is closest and lowest HP
     hp_adj = _mathutils.no_mean(hp) * (1. - wtc_ratio)

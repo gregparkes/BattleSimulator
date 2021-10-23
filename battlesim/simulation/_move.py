@@ -25,7 +25,7 @@ Parameters
 
 
 @jit(nopython=True)
-def to_enemy(M, dx, dy, dist, Z, Z_xi, Z_yi, i):
+def to_enemy(M, dx, dy, dist, z_i, i):
     """
     Updates M[x,y] towards the target.
 
@@ -37,14 +37,14 @@ def to_enemy(M, dx, dy, dist, Z, Z_xi, Z_yi, i):
     # modify dist to prevent it being zero
     D = dist[i] + 1e-12
     # cache the terra + speed influences.
-    terrain_tick = (1. - (Z[Z_xi[i], Z_yi[i]] / 2.)) * M['speed'][i]
+    terrain_tick = (1. - (z_i / 2.)) * M['speed'][i]
     # compute normed directional derivative and update.
     M['x'][i] += (dx[i] / D) * terrain_tick
     M['y'][i] += (dy[i] / D) * terrain_tick
 
 
 @jit(nopython=True)
-def from_enemy(M, dx, dy, dist, Z, Z_xi, Z_yi, i):
+def from_enemy(M, dx, dy, dist, z_i, i):
     """
     Updates M[x,y] towards the target.
 
@@ -56,7 +56,7 @@ def from_enemy(M, dx, dy, dist, Z, Z_xi, Z_yi, i):
     # modify dist to prevent it being zero
     D = dist[i] + 1e-12
     # cache the terra + speed influences.
-    terrain_tick = (1. - (Z[Z_xi[i], Z_yi[i]] / 2.)) * M['speed'][i]
+    terrain_tick = (1. - (z_i / 2.)) * M['speed'][i]
     # compute normed directional derivative and update.
     M['x'][i] -= (dx[i] / D) * terrain_tick
     M['y'][i] -= (dy[i] / D) * terrain_tick

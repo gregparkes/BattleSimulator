@@ -5,7 +5,7 @@ The initialization for the battlesim package.
 """
 
 """ This block handles the import needs of the package """
-hard_dependencies = ("numpy", "matplotlib", "pandas", "scipy", "numba")
+hard_dependencies = ("numpy", "matplotlib", "pandas", "numba")
 missing_dependencies = []
 
 for dependency in hard_dependencies:
@@ -44,6 +44,6 @@ Here are just a few things that battlesim aims to do well:
     - Formulate your simulation in a few lines of code from scratch.
     - Scales up to thousands (and 10s of thousands) of units
     - Flexibility: unit values are taken from a data file with flexible AI options
-    - Performance: Just-in-time compiling can manage thousands of units
+    - Performance: Just-in-time compiling (JIT) can manage thousands of units
     - Visualisation: Animations can be customized to change look-and-feel
 """
