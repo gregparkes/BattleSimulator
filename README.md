@@ -4,23 +4,26 @@
 ![last commit](https://img.shields.io/github/last-commit/gregparkes/BattleSimulator)
 ![repo size](https://img.shields.io/github/repo-size/gregparkes/BattleSimulator)
 
-The aim of this side project is to become familiar with Python classes and with primitive forms of animation and simulating environments. We map units onto a 2D plane and run simple simulations that involve them moving towards an enemy unit and attacking it. Rounds finish when one team has completely wiped out the other side, or we have reached the maximum number of timesteps.
+The aim of this side project is to become familiar with Python classes and with 
+primitive forms of animation and simulating environments. We map units onto a
+2D plane and run simple simulations that involve them moving towards an enemy 
+unit and attacking it. Rounds finish when one team has completely wiped out
+the other side, or we have reached the maximum number of timesteps.
 
-Users familiar with [Totally Accurate Battle Simulator](https://steamcommunity.com/app/508440) will hopefully love this package as a lot of the basic ideas are derived from this.
-
-*Note that as of July 2020, development for the Python version (i.e this repository) is presently 
-no longer in effect. Effort instead is going into [Javascript/Web](https://gregparkes.github.io/WebBattleSim/) 
-development instead, as it is more interactive*.
+Users familiar with [Totally Accurate Battle Simulator](https://steamcommunity.com/app/508440) will hopefully 
+love this package as a lot of the basic ideas are derived from this.
 
 ![Image not found](simulations/main.gif)
 
-The code for the primary engine is found in `battlesim/`, and implementations/examples are found in the Jupyter notebooks. Animations should display properly in these notebooks.
+The code for the primary engine is found in `battlesim/`, and implementations/
+examples are found in the Jupyter notebooks. Animations should display
+properly in these notebooks.
 
 ## Installation
 
 `battlesim` requires the following [dependencies](environment.yml):
 
-* python (>=3.5)
+* python (>=3.7)
 * numpy (>=1.11.0)
 * pandas (>=0.25.1)
 * matplotlib (>=3.1.1)
@@ -128,7 +131,8 @@ override directly:
 bat.composition_[1].pos = bsm.Sampling("normal", 10., 2.)
 ```
 
-And now to simulate:
+And now to simulate (note that the first time this executes will be painfully slow
+as JIT compiles a lot of code):
 
 ```python
 F = bat.simulate()

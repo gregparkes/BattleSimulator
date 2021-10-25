@@ -5,6 +5,7 @@ Created on Tue Oct  8 11:07:18 2019
 
 @author: gparkes
 """
+import math
 from numba import jit, njit
 
 from . import _damage, _hit, _move
@@ -53,18 +54,16 @@ def _select_enemy(M, enemies, i):
 #               enemies, allies, Z, Z_xi, Z_yi, i
 
 
-@jit
-def aggressive(M, luck, dists, dx, dy,
-               enemies,
-               Z, i):
+@njit
+def aggressive(M, luck, dists, dx, dy, xt, yt, enemies, Z, i):
     """
     This basic AI looks whether the current unit i is in range of it's target'
     and if it isn't, moves towards it until it is, then attacks.
     """
     # fetch height for unit i given indices.
     j = M['target'][i]
-    z_i = Z[M['xtile'][i], M['ytile'][i]]
-    z_j = Z[M['xtile'][j], M['ytile'][j]]
+    z_i = Z[math.trunc(xt[i]), math.trunc(yt[i])]
+    z_j = Z[math.trunc(xt[j]), math.trunc(yt[j])]
     # calculate updated range of unit
     r_i = M['range'][i] * ((z_i ** 2 / 3.) + 1.)
 
@@ -86,10 +85,8 @@ def aggressive(M, luck, dists, dx, dy,
         return False
 
 
-@jit
-def hit_and_run(M, luck, dists, dx, dy,
-                enemies,
-                Z, i):
+@njit
+def hit_and_run(M, luck, dists, dx, dy, xt, yt, enemies, Z, i):
     """
     This AI option sees if its range/movement is greater than it's enemy, and if it is, it
     performs hit-and-run on it's opponent.
@@ -99,8 +96,8 @@ def hit_and_run(M, luck, dists, dx, dy,
 
         # cache quick stats
         j = M["target"][i]
-        z_i = Z[M['xtile'][i], M['ytile'][i]]
-        z_j = Z[M['xtile'][j], M['ytile'][j]]
+        z_i = Z[math.trunc(xt[i]), math.trunc(yt[i])]
+        z_j = Z[math.trunc(xt[j]), math.trunc(yt[j])]
         range_i = M['range'][i] * ((z_i * z_i) / 3.) + 1.
         range_j = M['range'][j] * ((z_j * z_j) / 3.) + 1.
 
@@ -126,7 +123,7 @@ def hit_and_run(M, luck, dists, dx, dy,
         else:
             # otherwise just perform an 'aggressive' model.
             return aggressive(M, luck, dists, dx, dy,
-                              enemies, Z, i)
+                              xt, yt, enemies, Z, i)
     else:
         return False
 

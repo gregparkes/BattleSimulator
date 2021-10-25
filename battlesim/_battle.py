@@ -72,7 +72,7 @@ class Battle:
         return np.zeros(n, dtype=np.dtype([
             ("id", "u4"), ("target", "u4"), ("x", "f4"), ("y", "f4"),
             ("hp", "f4"), ("armor", "f4"), ("dmg", "f4"), ("range", "f4"), ("speed", "f4"),
-            ("acc", "f4"), ("dodge", "f4"), ("xtile", "f4"), ("ytile", "f4"),
+            ("acc", "f4"), ("dodge", "f4"),
             ("utype", "u1"), ("team", "u1"), ("ai_func_index", "u1")
         ], align=True))
 
