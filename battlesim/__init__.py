@@ -22,8 +22,9 @@ del hard_dependencies, dependency, missing_dependencies
 
 # imports
 from ._battle import Battle
-from battlesim.terra._terrain import Terrain
-from ._distributions import Distribution
+from .distrib import Composite, Sampling
+from .terra import Terrain
+from . import terra, distrib, plot, simulation
 from . import __legacy
 
 __version__ = "0.3.6"

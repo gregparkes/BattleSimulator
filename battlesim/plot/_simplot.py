@@ -12,7 +12,7 @@ from matplotlib import animation
 import itertools as it
 
 from battlesim.simulation._simulator_fast import frame_columns
-from battlesim.utils import check_columns, slice_loop
+from battlesim._utils import slice_loop
 
 from matplotlib.lines import Line2D
 

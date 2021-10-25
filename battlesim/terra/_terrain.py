@@ -14,7 +14,7 @@ from typing import Optional, Tuple
 
 from battlesim._mathutils import minmax
 from ._noise import create_perlin_map
-from battlesim import utils
+from battlesim import _utils
 
 
 def get_tile_size(dim: Tuple[float, float, float, float],
@@ -94,7 +94,7 @@ class Terrain:
             raise AttributeError("xmax cannot be <= xmin")
         if dim[3] <= dim[2]:
             raise AttributeError("ymax cannot be <= ymin")
-        utils.is_ntuple(dim, *([(int, float, np.float, np.int, np.float32, np.int32)] * 4))
+        _utils.is_ntuple(dim, *([(int, float, np.float, np.int, np.float32, np.int32)] * 4))
         self._bounds = dim
 
     @property
@@ -118,8 +118,9 @@ class Terrain:
     """############################## HIDDEN FUNCTIONS ################################################"""
 
     def _m_size(self):
-        return (int((self.bounds_[1] - self.bounds_[0]) / self.res_),
-                int((self.bounds_[3] - self.bounds_[2]) / self.res_))
+        x0, x1, y0, y1 = self.bounds_
+        return (int((x1-x0) / self.res_),
+                int((y1-y0) / self.res_))
 
     def __repr__(self):
         return "Terrain(init={}, dtype='{}', dims={}, resolution={:0.3f})".format(
@@ -128,15 +129,10 @@ class Terrain:
     """##################################### FUNCTIONS ##################################################"""
 
     def get_grid(self):
+        x0, x1, y0, y1 = self.bounds_
         """Returns the grid as an mgrid."""
-        return np.mgrid[self.bounds_[0]:self.bounds_[1]:self.res_,
-               self.bounds_[2]:self.bounds_[3]:self.res_]
-
-    def get_flat_grid(self):
-        """Produces a flat terra grid."""
-        X, Y = self.get_grid()
-        # they are repeats, return single.
-        return X[:, 0], Y[0, :]
+        x, y = np.linspace(x0, x1, self.Z_.shape[0]), np.linspace(y0, y1, self.Z_.shape[1])
+        return np.meshgrid(x, y)
 
     def generate(self, f=None):
         """
@@ -175,4 +171,4 @@ class Terrain:
             ax.imshow(self.Z_, aspect="auto", cmap="binary", extent=self.bounds_, **kwargs)
         elif self.form_ == "contour" or self.form_ == "random":
             X, Y = self.get_grid()
-            ax.contourf(X, Y, self.Z_, cmap="binary", extent=self.bounds_, **kwargs)
+            ax.contourf(X.T, Y.T, self.Z_, cmap="binary", extent=self.bounds_, **kwargs)

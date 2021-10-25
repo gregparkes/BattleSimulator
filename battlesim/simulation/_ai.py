@@ -30,10 +30,10 @@ __all__ = get_function_names()
 
 
 @njit
-def _select_enemy(M, enemies, allies, i):
+def _select_enemy(M, enemies, i):
     if M['hp'][M['target'][i]] <= 0:
         if enemies.shape[0] > 0:
-            t = nearest(M, enemies, allies, i)
+            t = nearest(M, enemies, i)
             if t != -1:
                 M['target'][i] = t
                 return True
@@ -55,7 +55,8 @@ def _select_enemy(M, enemies, allies, i):
 
 @jit
 def aggressive(M, luck, dists, dx, dy,
-               enemies, allies, Z, i):
+               enemies,
+               Z, i):
     """
     This basic AI looks whether the current unit i is in range of it's target'
     and if it isn't, moves towards it until it is, then attacks.
@@ -68,7 +69,7 @@ def aggressive(M, luck, dists, dx, dy,
     r_i = M['range'][i] * ((z_i ** 2 / 3.) + 1.)
 
     """# use ai_map to dictionary-map the group number to the appropriate AI function"""
-    if _select_enemy(M, enemies, allies, i):
+    if _select_enemy(M, enemies, i):
         # if not in range, move towards target, or hit a chance (5%) and move forward anyway.
         if dists[i] > r_i or luck[i] < 0.05:
             """# move unit towards attacking enemy."""
@@ -87,13 +88,14 @@ def aggressive(M, luck, dists, dx, dy,
 
 @jit
 def hit_and_run(M, luck, dists, dx, dy,
-                enemies, allies, Z, i):
+                enemies,
+                Z, i):
     """
     This AI option sees if its range/movement is greater than it's enemy, and if it is, it
     performs hit-and-run on it's opponent.
     """
     # assign target enemy
-    if _select_enemy(M, enemies, allies, i):
+    if _select_enemy(M, enemies, i):
 
         # cache quick stats
         j = M["target"][i]
@@ -124,7 +126,7 @@ def hit_and_run(M, luck, dists, dx, dy,
         else:
             # otherwise just perform an 'aggressive' model.
             return aggressive(M, luck, dists, dx, dy,
-                              enemies, allies, Z, i)
+                              enemies, Z, i)
     else:
         return False
 

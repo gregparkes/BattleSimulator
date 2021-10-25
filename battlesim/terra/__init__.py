@@ -1,1 +1,1 @@
-from . import _noise, _terrain
+from ._terrain import Terrain

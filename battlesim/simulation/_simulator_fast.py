@@ -24,7 +24,7 @@ def frame_columns():
 
 
 @njit
-def _copy_frame(Frames, M, S, dx, dy, dist, i):
+def _copy_frame(Frames, M, dx, dy, dist, i):
     # copy over data from M into frames.
     Frames["x"][i] = M["x"]
     Frames["y"][i] = M["y"]
@@ -47,10 +47,14 @@ def _loop_units(M,
                 dx,
                 dy,
                 enemy_targets,
-                ally_targets,
-                Z_m):
+                Z_m,
+                teams):
     """ Loops over the units and executes the function. """
     running = True
+
+    for g in range(teams.shape[0]):
+        # update enemy targets.
+        enemy_targets[g] = np.where((M['hp'] > 0.) & (M["team"] != teams[g]))[0]
 
     for i in range(M.shape[0]):
 
@@ -70,7 +74,7 @@ def _loop_units(M,
                     dx, dy,
                     # group indices (targets to i, enemies of i, allies of i)
                     enemy_targets[M['team'][i]],
-                    ally_targets[M['team'][i]],
+                    #ally_targets[M['team'][i]],
                     # variables to do with terrain.
                     Z_m,
                     # current unit under examination - index.
@@ -88,7 +92,7 @@ def _loop_units(M,
                     dx, dy,
                     # group indices (targets to i, enemies of i, allies of i)
                     enemy_targets[M['team'][i]],
-                    ally_targets[M['team'][i]],
+                    #ally_targets[M['team'][i]],
                     # variables to do with terrain.
                     Z_m,
                     # current unit under examination - index.
@@ -97,10 +101,46 @@ def _loop_units(M,
     return running
 
 
+@njit
+def _step_through(M, Z, max_step, teams, enemy_targets, bounds, frames, ret_frames):
+    """ steps through the simulation. """
+    t = 0
+    running = True
+
+    zx_index = np.array([0, Z.shape[0]], dtype=np.int64)
+    zy_index = np.array([0, Z.shape[1]], dtype=np.int64)
+    xb = bounds[:2]
+    yb = bounds[2:]
+
+    # begin loop
+    while (t < max_step) and running:
+        """# perform a boundary check."""
+        _mathutils.boundary_check2(bounds, M["x"], M['y'])
+        # lerp to update all units tile position
+        xf = np.interp(M['x'], xb, zx_index)
+        yf = np.interp(M['y'], yb, zy_index)
+        M['xtile'] = np.trunc(xf)
+        M['ytile'] = np.trunc(yf)
+        """# pre-compute the direction derivatives and magnitude/distance for each unit to it's target in batch."""
+        dx = M['x'][M['target']] - M['x']
+        dy = M['y'][M['target']] - M['y']
+        dists = _mathutils.euclidean_distance(dx, dy)
+        """# pre-compute the 'luck' of each unit with random numbers."""
+        round_luck = np.random.rand(M.shape[0])
+        """# copy a frame"""
+        if ret_frames:
+            _copy_frame(frames, M, dx, dy, dists, t)
+
+        """# iterate over units and call AI function."""
+        running = _loop_units(M, round_luck, dists, dx, dy,
+                              enemy_targets,
+                              Z, teams)
+        t += 1
+    return t
+
+
 def simulate_battle(M,
-                    S,
                     terrain,
-                    decision_map,
                     max_step=100,
                     ret_frames=True):
     """
@@ -119,14 +159,8 @@ def simulate_battle(M,
     --------
     M : np.ndarray (units, )
         A heterogenous matrix containing data values for units
-    S : np.ndarray (armies,)
-        Static data describing fixed variables.
     terrain : bsm.Terrain object
         Terrain object containing the bounds.
-    target_map : dict
-        A dictionary mapping groups (k) to a bsm.target.* function (v)
-    decision_map : dict
-        A dictionary mapping groups (k) to a bsm.ai.* function (v)
     max_step : int
         The maximum number of steps
     ret_frames : bool
@@ -137,12 +171,16 @@ def simulate_battle(M,
     frames : np.ndarray (frame, :)
         Each frame is a numpy.ndmatrix.
     """
-    t = 0
-    running = True
+    # define teams.
     teams = np.unique(M["team"])
     # unpack bounds
-    xmin, xmax, ymin, ymax = terrain.bounds_
+    bounds = np.asarray(terrain.bounds_)
+    Z = np.copy(terrain.Z_)
 
+    # initialise enemy targets
+    enemy_targets = typed.List([np.where((M["team"] != T))[0] for T in teams])
+
+    # initilise frames array if returning full set.
     if ret_frames:
         frames = np.zeros(
             (max_step + 1, M.shape[0]),
@@ -151,39 +189,11 @@ def simulate_battle(M,
                             ("xtile", "u4"), ("ytile", "u4"), ("team", "u1"), ("utype", "u1")
                             ], align=True)
         )
-
-    #_dec_map = typed.List([AI.aggressive, AI.hit_and_run])
-
-    while (t < max_step) and running:
-        """# perform a boundary check."""
-        _mathutils.boundary_check(xmin, xmax, ymin, ymax, M["x"], M['y'])
-        # lerp to update all units tile position
-        M['xtile'] = np.interp(M['x'], [xmin, xmax], [0., terrain.Z_.shape[0]]).astype(np.uint16)
-        M['ytile'] = np.interp(M['y'], [ymin, ymax], [0., terrain.Z_.shape[1]]).astype(np.uint16)
-        """# pre-compute the direction derivatives and magnitude/distance for each unit to it's target in batch."""
-        dx = M['x'][M['target']] - M['x']
-        dy = M['y'][M['target']] - M['y']
-        dists = _mathutils.euclidean_distance(dx, dy)
-        """precompute enemy and ally target listings"""
-        enemy_targets = typed.List([np.argwhere((M["hp"] > 0.) & (M["team"] != T)).flatten() for T in teams])
-        ally_targets = typed.List([np.argwhere((M["hp"] > 0.) & (M["team"] == T)).flatten() for T in teams])
-        """# pre-compute the 'luck' of each unit with random numbers."""
-        round_luck = np.random.rand(M.shape[0])
-
-        # copy a frame
-        if ret_frames:
-            _copy_frame(frames, M, S, dx, dy, dists, t)
-
-        # iterate over units and call AI function.
-        running = _loop_units(M, round_luck, dists, dx, dy,
-                              enemy_targets,
-                              ally_targets,
-                              terrain.Z_)
-
-        t += 1
-
-    if ret_frames:
-        # return _convert_to_pandas(frames[:t])
+        t = _step_through(M, Z, max_step,
+                          teams, enemy_targets, bounds,
+                          frames, True)
         return frames[:t]
     else:
+        t = _step_through(M, Z, max_step, teams, enemy_targets,
+                          bounds, np.array([0.]), False)
         return np.asarray([np.argwhere((M["hp"] > 0) & (M["team"] == T)).flatten().shape[0] for T in teams])

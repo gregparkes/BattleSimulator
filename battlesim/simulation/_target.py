@@ -68,7 +68,7 @@ __all__ = get_function_names() + get_global_function_names()
 
 
 @njit
-def random(M, enemies, allies, i):
+def random(M, enemies, i):
     """
     Given enemy candidates who are alive, draw an index of one at random.
     """
@@ -80,7 +80,7 @@ def random(M, enemies, allies, i):
 
 
 @njit
-def nearest(M, enemies, allies, i):
+def nearest(M, enemies, i):
     """
     Given enemy candidates who are alive, determine which one is nearest.
     """
@@ -93,7 +93,7 @@ def nearest(M, enemies, allies, i):
 
 
 @njit
-def close_weak(M, enemies, allies, i, wtc_ratio=0.7):
+def close_weak(M, enemies, i, wtc_ratio=0.7):
     """
     Given enemy alive candidates, globally determine which one is the weakest
     and closest, using appropriate weighting for each option.
@@ -150,30 +150,29 @@ all units need a new target.
 
 
 @njit
-def global_random(x, y, hp, team, group, group_i):
+def global_random(M, group_i):
     # define
-    selector = (group == group_i)
-    t = np.unique(team[selector])[0]
+    sel = M['id'] == group_i
+    t = M['team'][sel][0]
     # get unit IDs that are not equal to this team for enemies.
-    id_not, = np.where(team != t)
+    id_not, = np.where(M['team'] != t)
     # set the index for these guys
-    j = np.random.choice(id_not, selector.sum())
-    return j
+    return np.random.choice(id_not, sel.sum())
 
 
 @njit
-def global_nearest(x, y, hp, team, group, group_i):
+def global_nearest(M, group_i):
     # define
-    selector = (group == group_i)
-    t = np.unique(team[selector])[0]
+    selector = M['id'] == group_i
+    t = M['team'][selector][0]
     # calculate distance matrix, with offset to ignore diagonal, with random noise
-    D = _mathutils.sq_distance_matrix(x, y)
+    D = _mathutils.sq_distance_matrix(M['x'], M['y'])
     # only calculate for diaginal indices.
     np.fill_diagonal(D, np.max(D))
     # sprinkle on random noise
     D += np.random.rand(D.shape[0], D.shape[0]) / 4.
     # get unit IDs that are not equal to this team for enemies.
-    id_not, = np.where(team != t)
+    id_not, = np.where(M['team'] != t)
     id_is, = np.where(selector)
     # use distance matrix and ids to select sub groups to find argmin
     j = _mathutils.matrix_argmin(D[id_is, :][:, id_not])
@@ -181,13 +180,12 @@ def global_nearest(x, y, hp, team, group, group_i):
 
 
 @njit
-def global_close_weak(x, y, hp, team, group, group_i, wtc_ratio=0.7):
+def global_close_weak(M, group_i, wtc_ratio=0.7):
     # define
-    selector = (group == group_i)
-    t = np.unique(team[selector])[0]
-
+    selector = M['id'] == group_i
+    t = M['team'][selector][0]
     # calculate distance matrix, with offset to ignore diagonal, with random noise
-    D = _mathutils.sq_distance_matrix(x, y)
+    D = _mathutils.sq_distance_matrix(M['x'], M['y'])
     np.fill_diagonal(D, np.max(D))
     D += np.random.rand(D.shape[0], D.shape[0]) / 4.
 
@@ -196,7 +194,7 @@ def global_close_weak(x, y, hp, team, group, group_i, wtc_ratio=0.7):
     dist_adj = _mathutils.no_mean(D) * wtc_ratio
 
     # get unit IDs that are not equal to this team for enemies.
-    id_not, = np.where(team != t)
+    id_not, = np.where(M['team'] != t)
     id_is, = np.where(selector)
     # use distance matrix and ids to select sub groups to find argmin
     j = _mathutils.matrix_argmin(dist_adj[id_is, :][:, id_not] + hp_adj[id_not])

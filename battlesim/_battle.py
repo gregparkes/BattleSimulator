@@ -5,21 +5,22 @@ Responsible for creating a Battle object.
 """
 
 import itertools as it
+import warnings
+from typing import Callable, Dict, List, Optional, Tuple, Union
+
 import numpy as np
 import pandas as pd
-import warnings
-from typing import Dict, Union, Tuple, Callable, List
 
-from . import utils
-from .plot import quiver_fight, loop_colors
-from .simulation import _ai as AI, _target
+from battlesim.simulation import simulate_battle as sim_battle
+from battlesim.terra import Terrain
+from . import _utils
 from .__defaults import default_db
-from battlesim.simulation._simulator_fast import simulate_battle as sim_battle
-from ._distributions import Distribution
-from battlesim.terra._terrain import Terrain
+from .distrib import Composite
+from .plot import loop_colors, quiver_fight
+from .simulation import _ai as AI, _target
 
 
-class Battle(object):
+class Battle:
     """
     This 'Battle' object provides the interface for the user of simulating
     a number of Battles.
@@ -33,7 +34,8 @@ class Battle(object):
 
     def __init__(self,
                  db: Union[str, Dict, pd.DataFrame] = default_db(),
-                 bounds: Tuple[float, float, float, float] = (0., 10., 0., 10.)):
+                 bounds: Tuple[float, float, float, float] = (0., 10., 0., 10.),
+                 use_tqdm: bool = True):
         """
         Instantiate this object with a filepath leading to
 
@@ -47,18 +49,22 @@ class Battle(object):
         bounds : tuple (4,)
             The left, right, top and bottom bounds of the battle. Units cannot
             leave these bounds.
+        use_tqdm : bool, default=True
+            Draws a progressbar with `simulate_k` if tqdm is installed
         """
+        self.use_tqdm = use_tqdm
         # assign with checks
         self.db_ = db
-        self._D = []
         self._M = None
         self._S = None
         self._sim = None
         self.db_.index = self.db_.index.str.lower()
         # initialise a terra
         self._T = Terrain(bounds, res=.1, form=None)
-        # create internal dictionary called 'army group' or ag
-        self._ag = {}
+        # design a list of composites
+        self._comps = []
+        self._decision_map = {"aggressive": 0, "hit_and_run": 1}
+
 
     """####################### HIDDEN FUNCTIONS ##############################"""
 
@@ -78,51 +84,30 @@ class Battle(object):
             ("acc", "f4"), ("dodge", "f4"), ("group", "u1"), ("utype", "u1"), ("team", "u1"),
         ], align=True))
 
+    def _loading_bar(self, k: int):
+        if self.use_tqdm and _utils.is_tqdm_installed(False):
+            from tqdm import tqdm
+            return tqdm(range(k))
+        else:
+            return range(k)
+
     def _is_instantiated(self):
-        if self.M_ is None:
+        if self._comps is None:
             raise AttributeError("'create_army' has not been called - there are no units.")
 
     def _is_simulated(self):
         if self.sim_ is None:
             raise AttributeError("No simulation has occurred, no presense of battle.sim_ object.")
 
-    def _determine_target_ai(self, t, pkg=_target):
-        self._is_instantiated()
-        if isinstance(t, str):
-            if t in pkg.get_function_names():
-                return [t] * self.n_armies_
-            else:
-                raise ValueError("value '{}' not found in {}".format(t, pkg.get_function_names()))
-        elif isinstance(t, (list, tuple)) and len(t) == self.n_armies_:
-            utils.check_in_list(pkg.get_function_names(), t)
-            utils.check_list_type(t, str)
-            return t
-        else:
-            raise AttributeError("target ai type must be a type of [str, list, tuple].")
-
-    def _determine_ai_mapping(self, t, pkg=_target):
-        mm = pkg.get_map_functions()
-        r_armies = range(self.n_armies_)
-        army_to_fname = dict(zip(r_armies, t))
-        return dict(zip(r_armies, [mm[army_to_fname[f]] for f in army_to_fname]))
-
     def _plot_simulation(self, func: Callable):
         labels = self.allegiances_.to_dict()
-        cols = utils.slice_loop(loop_colors(), len(self.allegiances_))
+        cols = _utils.slice_loop(loop_colors(), len(self.allegiances_))
         # call plotting function - with or without terra
         if self.T_ is not None:
             Q = func(self.sim_, self.T_, labels, cols)
         else:
             Q = func(self.sim_, None, labels, cols)
         return Q
-
-    def _initialize_position(self):
-        """ Given self.D_, instantiation, we should be able to map positions """
-        self._is_instantiated()
-        for i, (u, n, (start, end), dist) in enumerate(zip(self._unit_roster, self._unit_n, self._segments, self.D_)):
-            sampx, sampy = dist.sample_xy(n)
-            self.M_["x"][start:end] = sampx
-            self.M_["y"][start:end] = sampy
 
     def _get_bounds_from_M(self):
         xmin, xmax = self.M_["x"].min(), self.M_["x"].max()
@@ -140,32 +125,45 @@ class Battle(object):
         if bounds[3] < ymax:
             raise ValueError("ymax bounds value: {} < unit bound {}".format(bounds[3], ymax))
 
-    def _assign_initial_targets(self):
+    def _presim(self):
+        self._M = Battle._generate_M(sum(self._unit_n))
+        # check that groups exist in army_set
+        _seg_start, _seg_end = self._segments
+        decision_ai_map = dict(zip(AI.get_function_names(), it.count()))
 
-        f_dict = _target.get_global_map_functions()
+        # set initial values.
+        for group, (u, n, start, end, comp) in enumerate(zip(self._unit_roster, self._unit_n, _seg_start, _seg_end, self._comps)):
+            # set mutable M values in larger matrix.
+            self.M_['hp'][start:end] = self.db_.loc[u, "HP"]
+            self.M_["armor"][start:end] = self.db_.loc[u, "Armor"]
+            self.M_['team'][start:end] = self.db_.loc[u, "allegiance_int"]
+            self.M_["id"][start:end] = group
+            self.M_['utype'][start:end] = np.argwhere(self.db_.index == u).flatten()[0]
+            self.M_["range"][start:end] = self.db_.loc[u, "Range"]
+            self.M_["speed"][start:end] = self.db_.loc[u, "Movement Speed"]
+            self.M_["dodge"][start:end] = self.db_.loc[u, "Miss"] / 100.
+            self.M_["acc"][start:end] = self.db_.loc[u, "Accuracy"] / 100.
+            self.M_["dmg"][start:end] = self.db_.loc[u, "Damage"]
+            # ai func index (0 = aggressive, 1 = hit_and_run)
+            self.M_['ai_func_index'][start:end] = decision_ai_map[comp.decision_ai]
+            # initialise position
+            self.M_["x"][start:end] = comp.pos.sample(n)
+            self.M_["y"][start:end] = comp.pos.sample(n)
 
-        for group, (start, end), func, team in zip(range(self.n_armies_), self._segments, self.init_ai_, self._teams):
-            mod_func = "global_" + func
-            # get static variables
+        # modify bounds to reflect new positions.
+        self.bounds_ = self._get_bounds_from_M()
+        # assign initial AI targets.
+        for group, (start, end) in enumerate(zip(_seg_start, _seg_end)):
             # assign targets
-            self.M_["target"][start:end] = f_dict[mod_func](
-                self.M_["x"], self.M_['y'], self.M_["hp"], self.M_["team"], self.M_["id"], group
-            )
+            self.M_["target"][start:end] = _target.global_nearest(self.M_, group)
 
     """---------------------- PUBLIC ATTRIBUTES AND ATTR METHODS ----------------------------------------"""
 
     @property
-    def composition_(self) -> pd.DataFrame:
+    def composition_(self):
         """Determines the composition of the Battle."""
         self._is_instantiated()
-        d = {"unit": [name for name, _ in self.army_set_],
-             "allegiance": [self.db_.loc[u, "Allegiance"] for u, _ in self.army_set_],
-             "n": [n for _, n in self.army_set_],
-             "position": ["{} ({:0.1f}, {:0.1f})".format(dist.dist_, dist.mean_[0], dist.mean_[1]) for dist in self.D_],
-             "init_ai": self.init_ai_,
-             "rolling_ai": self.rolling_ai_,
-             "decision_ai": self.decision_ai_}
-        return pd.DataFrame(d)
+        return self._comps
 
     @property
     def n_allegiance_(self):
@@ -178,6 +176,7 @@ class Battle(object):
     @property
     def bounds_(self) -> Tuple[float, float, float, float]:
         """Determine the bounds of the fight using the Terrain."""
+        self._is_instantiated()
         return self.T_.bounds_
 
     @bounds_.setter
@@ -196,11 +195,6 @@ class Battle(object):
         return self._M
 
     @property
-    def S_(self) -> np.ndarray:
-        """The immutable (fixed) matrix information."""
-        return self._S
-
-    @property
     def sim_(self):
         """The simulation object."""
         return self._sim
@@ -213,15 +207,15 @@ class Battle(object):
     @db_.setter
     def db_(self, db_n):
         if isinstance(db_n, str):
-            self._db = utils.import_and_check_unit_file(db_n)
+            self._db = _utils.import_and_check_unit_file(db_n)
         elif isinstance(db_n, dict):
             self._db = pd.DataFrame(db_n)
-            utils.check_unit_file(self._db)
-            utils.preprocess_unit_file(self._db)
+            _utils.check_unit_file(self._db)
+            _utils.preprocess_unit_file(self._db)
         elif isinstance(db_n, pd.DataFrame):
             self._db = db_n.copy()
-            utils.check_unit_file(self._db)
-            utils.preprocess_unit_file(self._db)
+            _utils.check_unit_file(self._db)
+            _utils.preprocess_unit_file(self._db)
         else:
             raise ValueError("'db' must be of type [str, dict, pd.DataFrame], not {}".format(type(db_n)))
 
@@ -243,71 +237,17 @@ class Battle(object):
         return len(self._unit_roster)
 
     @property
-    def N_(self) -> int:
-        """The total number of units."""
-        self._is_instantiated()
-        return sum(self._unit_n)
-
-    @property
-    def D_(self):
-        """A set of Distribution objects."""
-        return self._D
-
-    @D_.setter
-    def D_(self, d):
-        """ where d is a list/tuple of distribution, str, or dict """
-        self._is_instantiated()
-        self._D = []
-        if isinstance(d, (str, Distribution)):
-            self._D = [Distribution(d) for _ in range(self.n_armies_)]
-        elif isinstance(d, dict):
-            self._D = [Distribution(**d) for _ in range(self.n_armies_)]
-        elif isinstance(d, (list, tuple)):
-            for dist in d:
-                if isinstance(dist, (str, Distribution)):
-                    self._D.append(Distribution(dist))
-                elif isinstance(dist, dict):
-                    self._D.append(Distribution(**dist))
-        else:
-            raise TypeError("'d' must be of type [list, tuple, str, Distribution, dict]")
-
-    @property
     def allegiances_(self):
         """The list of allegiances."""
         return self.db_[["Allegiance", "allegiance_int"]].set_index("allegiance_int").drop_duplicates().squeeze()
 
-    @property
-    def init_ai_(self):
-        """The initialization AI chosen for selecting targets."""
-        return self._init_ai
-
-    @init_ai_.setter
-    def init_ai_(self, ia):
-        self._init_ai = self._determine_target_ai(ia)
+    """################### HIDDEN ATTRIBUTE #################################"""
 
     @property
-    def rolling_ai_(self):
-        """The AI chosen whenever an enemy unit dies."""
-        return self._rolling_ai
-
-    @rolling_ai_.setter
-    def rolling_ai_(self, ra):
-        self._rolling_ai = self._determine_target_ai(ra)
-
-    @property
-    def decision_ai_(self):
-        """The AI chosen to govern the actions of each army set."""
-        return self._decision_ai
-
-    @decision_ai_.setter
-    def decision_ai_(self, da):
-        self._decision_ai = self._determine_target_ai(da, pkg=AI)
-
-    ################### HIDDEN ATTRIBUTE #################################
-
-    @property
-    def _segments(self) -> Tuple[str, int]:
-        return utils.get_segments(self.army_set_)
+    def _segments(self):
+        _seg_end = np.cumsum(self._unit_n)
+        _seg_start = np.hstack((np.array([0], dtype=int), _seg_end[:-1]))
+        return _seg_start, _seg_end
 
     @property
     def _teams(self) -> np.ndarray:
@@ -316,7 +256,7 @@ class Battle(object):
 
     """--------------------------------- PUBLIC FUNCTIONS ------------------------------------------------"""
 
-    def create_army(self, army_set: Tuple[str, int]):
+    def create_army(self, army_set: List[Composite]):
         """
         Armies are groupings of (<'Unit Type'>, <number of units>). You can
         create one or more of these.
@@ -327,108 +267,20 @@ class Battle(object):
 
         Parameters
         -------
-        army_set : list of 2-tuple
+        army_set : list of Composite
             A list of 'army groups' given as ('Unit Type', number of units)
 
         Returns self
         -------
         self
         """
-        # assign
-        utils.is_twotuple(army_set, str, (int, np.int, np.int64))
+        self._comps = army_set
         # assign unit roster, n for roster
-        self._unit_roster = [u.lower() for u, _ in army_set]
-        self._unit_n = [n for _, n in army_set]
-
-        self._M = Battle._generate_M(sum(self._unit_n))
-        self._S = Battle._generate_S(len(self.army_set_))
-        # check that groups exist in army_set
-        utils.check_groups_in_db(self.army_set_, self.db_)
-
-        # capture distributions
-        self._D = [Distribution("normal", loc=i * 2., scale=1.) for i in range(self.n_armies_)]
-
-        decision_ai_map = dict(zip(AI.get_function_names(), it.count()))
-
-        # set initial values.
-        for i, (u, n, (start, end), dist) in enumerate(zip(self._unit_roster, self._unit_n, self._segments, self.D_)):
-            # set S values.
-            self.S_['utype'][i] = np.argwhere(self.db_.index == u).flatten()[0]
-            self.S_['team'][i] = self.db_.loc[u, "allegiance_int"]
-            self.S_["range"][i] = self.db_.loc[u, "Range"]
-            self.S_["speed"][i] = self.db_.loc[u, "Movement Speed"]
-            self.S_["dodge"][i] = self.db_.loc[u, "Miss"] / 100.
-            self.S_["acc"][i] = self.db_.loc[u, "Accuracy"] / 100.
-            self.S_["dmg"][i] = self.db_.loc[u, "Damage"]
-            self.S_["id"][i] = i
-
-            # set mutable M values in larger matrix.
-            self.M_['hp'][start:end] = self.db_.loc[u, "HP"]
-            self.M_["armor"][start:end] = self.db_.loc[u, "Armor"]
-            self.M_['team'][start:end] = self.db_.loc[u, "allegiance_int"]
-            self.M_["id"][start:end] = i
-            self.M_['utype'][start:end] = np.argwhere(self.db_.index == u).flatten()[0]
-            self.M_["range"][start:end] = self.db_.loc[u, "Range"]
-            self.M_["speed"][start:end] = self.db_.loc[u, "Movement Speed"]
-            self.M_["dodge"][start:end] = self.db_.loc[u, "Miss"] / 100.
-            self.M_["acc"][start:end] = self.db_.loc[u, "Accuracy"] / 100.
-            self.M_["dmg"][start:end] = self.db_.loc[u, "Damage"]
-            # ai func index (0 = aggressive, 1 = hit_and_run)
-            self.M_['ai_func_index'][start:end] = decision_ai_map['aggressive']
-
-        # update positions
-        self._initialize_position()
-        # modify bounds to reflect new positions.
-        self.bounds_ = self._get_bounds_from_M()
-
-        # initialise AIs as nearest by default.
-        self.set_initial_ai("nearest")
-        self.set_rolling_ai("nearest")
-        # main AI options
-        self.set_decision_ai("aggressive")
-
+        self._unit_roster = [u.name.lower() for u in army_set]
+        self._unit_n = [u.n for u in army_set]
         return self
 
-    def apply_position(self, distributions):
-        """
-        Assign locations to each 'army set' using a distribution from the battlesim.Distribution object.
-
-        e.g
-
-        battle.apply_distribution("gaussian")
-        battle.apply_distribution(bsm.Distribution("normal",loc=0,scale=1))
-        battle.apply_distribution([bsm.Distribution("beta"), bsm.Distribution("normal")])
-        battle.apply_distribution([
-            {"name":"beta", "x_loc":0., "y_loc":1.},
-            {"dist":"normal", "x_loc":10., "y_loc": 10.}
-        ])
-
-        Parameters
-        -------
-        distributions : str, battlesim.Distribution or list/tuple of battlesim.Distribution/dict.
-            The distribution(s) corresponding to each group.
-            e.g
-            str : distribution name for all army sets
-            dict : distribution name and parameters for all army sets
-            Distribution : object for all army sets
-            list/tuple:
-                Distribution : object for each army set
-                dict : name and parameters for each army set
-                str : dist name for each army set
-
-        Returns
-        -------
-        self
-        """
-        # assign and check
-        self.D_ = distributions
-        # assign positions
-        self._initialize_position()
-        # modify bounds
-        self.bounds_ = self._get_bounds_from_M()
-        return self
-
-    def apply_terrain(self, t=None, res: float = .1):
+    def apply_terrain(self, t: Optional[str] = None, res: float = .1):
         """
         Applies a Z-plane to the map that the Battle is occuring on by creating
         a bsm.Terrain object.
@@ -459,68 +311,6 @@ class Battle(object):
         else:
             raise ValueError("'t' must be [grid, contour, None]")
 
-    def set_initial_ai(self, func_names: Union[str, List[str]]):
-        """
-        Set the AI decisions for choosing a target initially. Pass a function name from bsm.ai
-        for each 'army set'.
-
-        Parameters
-        --------
-        func_names : str or list of str
-            The AI function to choose for initial targets for each army set. Can choose from:
-                ['random', 'pack', 'nearest']
-
-        Returns
-        -------
-        self
-        """
-        self.init_ai_ = func_names
-        return self
-
-    def set_rolling_ai(self, func_names: Union[str, List[str]]):
-        """
-        Set the AI decisions for choosing a target rolling through the simulation.
-        Pass a function name from bsm.ai for each 'army set'.
-
-        Parameters
-        --------
-        func_names : str or list of str
-            The AI function to choose for targets when their target dies
-            for each army set. Can choose from: ['random', 'pack', 'nearest']
-
-        Returns
-        -------
-        self
-        """
-        self.rolling_ai_ = func_names
-        # map these strings to actual functions, ready for simulate.
-        self._rolling_map = self._determine_ai_mapping(self.rolling_ai_)
-        return self
-
-    def set_decision_ai(self, decision: Union[str, List[str]]):
-        """
-        Sets the over-arching AI choices for each 'army group'. By default they
-        choose an 'aggressive' stance.
-
-        WARNING: This function CAN override the choices made for the 'initial'
-        and 'rolling' AI decisions, based on it's functionality. This function
-        is therefore superior to those options.
-
-        Parameters
-        --------
-        decision : str or list of str
-            If str, applies that option to all army groups. Choose from
-            [aggressive, hit_and_run]
-
-        Returns
-        -------
-        self
-        """
-        self.decision_ai_ = decision
-        # map these strings to actual functions, ready for simulate.
-        self._decision_map = self._determine_ai_mapping(self.decision_ai_, pkg=AI)
-        return self
-
     def set_bounds(self, bounds: Tuple[float, float, float, float]):
         """
         Sets the boundaries of the Battle. If not initialised, this is OK but may
@@ -540,32 +330,29 @@ class Battle(object):
 
     """ ----------------------------- SIMULATION ----------------------------- """
 
-    def simulate(self, **kwargs):
+    def simulate(self):
         """
         Runs the 'simulate_battle' algorithm. Creates and passes a copy to simulate..
 
-        Returns pd.DataFrame of frames.
+        Returns np.ndarray of frames.
         """
         self._is_instantiated()
         # check for multiple teams
         if np.unique(self._teams).shape[0] <= 1:
             warnings.warn("Simulation halted - There is only one team present.", UserWarning)
             return self.sim_
-        # set the flat terra if it doesn't exist
-        if self.T_.Z_ is None:
-            self.T_.generate()
-        # firstly assign initial AI targets.
-        self._assign_initial_targets()
+
+        # set up M matrix from composition info
+        self._presim()
+        # re-generate terrain.
+        self.T_.generate()
         # we cache a copy of the sim as well for convenience
         self._sim = sim_battle(np.copy(self.M_),
-                               np.copy(self.S_),
                                self.T_,
-                               self._decision_map,
-                               ret_frames=True,
-                               **kwargs)
+                               ret_frames=True)
         return self.sim_
 
-    def simulate_k(self, k: int = 10, **kwargs):
+    def simulate_k(self, k: int = 10):
         """
         Runs the 'simulate_battle' algorithm 'k' times. Creates and passes a copy
         to simulate.
@@ -595,18 +382,16 @@ class Battle(object):
                 return self.sim_
 
             runs = np.zeros((k, 2), dtype=np.int64)
+            # pre-simulate fields.
+            self._presim()
             # generate new terra
             self.T_.generate()
-            for i in range(k):
-                # firstly assign initial AI targets.
-                self._assign_initial_targets()
+
+            for i in self._loading_bar(k):
                 # run simulation
                 team_counts = sim_battle(np.copy(self.M_),
-                                         np.copy(self.S_),
                                          self.T_,
-                                         self._decision_map,
-                                         ret_frames=False,
-                                         **kwargs)
+                                         ret_frames=False)
                 runs[i, :] = team_counts
             return pd.DataFrame(runs, columns=self.allegiances_.values)
 

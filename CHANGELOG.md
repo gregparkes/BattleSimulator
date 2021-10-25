@@ -2,7 +2,24 @@
 
 All notable changes to this project will be documented in this file.
 
-## [0.3.6] - 2020-02-04 (In Development)
+## [0.3.7] - 2020-10-23 (In Development)
+### Added
+- `Composite` class to create armies with. This holds all the meta information for a unit group.
+- `Sampling` class. Lightweight replacement for `Distribution`.
+- `tqdm` package support with simulate_k method.
+
+### Changed
+- Significant internal cleaning of `Battle` object.
+- Optimisations to `simulate_fast` function have lead to
+around 20x speed up using `numba` more efficiently.
+- Integration of numpy array with heterogenous aligned data type with numba continued.
+- Unit tiling significantly improved using lerp over distance minimizations.
+
+### Removed
+- `Distribution` class. This was too verbose and has been replaced with `Sampling`.
+
+
+## [0.3.6] - 2020-02-04
 ### Added
 - Terrains can now be generated using *perlin noise*. This is not only significantly faster for larger maps but generates more attractive background maps.
 

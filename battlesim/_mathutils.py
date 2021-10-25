@@ -1,6 +1,5 @@
 """ Various utilities for fast computation of things within the simulation. """
 
-import math
 import numpy as np
 from numba import njit, prange
 
@@ -12,6 +11,15 @@ def boundary_check(bxmin, bxmax, bymin, bymax, X, Y):
     X[X > bxmax] = bxmax
     Y[Y < bymin] = bymin
     Y[Y > bymax] = bymax
+
+
+@njit
+def boundary_check2(bounds, X, Y):
+    """performs boundary checks on our locations movement inplace"""
+    X[X < bounds[0]] = bounds[0]
+    X[X > bounds[1]] = bounds[1]
+    Y[Y < bounds[2]] = bounds[2]
+    Y[Y > bounds[3]] = bounds[3]
 
 
 @njit
