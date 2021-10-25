@@ -42,7 +42,10 @@ If you have working versions of the dependencies, similarly [install using pip](
 pip install battlesim
 ```
 
-We recommend updating the dependencies yourself using conda rather than through pip because conda manages the dependencies better, but pip will do it for you. See the `environment.yml` file for dependencies.
+We recommend updating the dependencies yourself using conda 
+rather than through pip because conda manages the dependencies
+better, but pip will do it for you. See the `environment.yml` 
+file for dependencies.
 
 ### From Cloning the GitHub Repository
 
@@ -80,83 +83,119 @@ Firstly, check the requirements for using this simulator, of which most come wit
 Secondly, you will need to import the package as:
 
 ```python
->>> import battlesim as bsm
+import battlesim as bsm
 ```
 
 We recommend using `bsm` as a shorthand to reduce the amount of writing out you have to do. If you're using Jupyter notebook we also recommend:
 
 ```python
->>> import matplotlib.pyplot as plt
->>> plt.rcParams["animation.html"] = "html5"
->>> %matplotlib inline
+import matplotlib.pyplot as plt
+plt.rcParams["animation.html"] = "html5"
 ```
 
 The second line is important when you come to plotting the animations, as there are a number of issues with using it. All of the heavy lifting comes in the `bsm.Battle` object that provides a neat interface for all of the operations you would like to conduct:
 
 ```python
->>> import battlesim as bsm
->>> battle = bsm.Battle("datasets/starwars-clonewars.csv")
->>> battle
-bsm.Battle(init=False)
+bat = bsm.Battle("datasets/starwars-clonewars.csv")
 ```
 
-You can see that we have specified a 'dataset' from which all of the unit roster can be drawn from; for specifics of how this file should
-be oriented, see the documentation. We then need to specify units to create to form an army. For example, in this Star Wars example, we could specify a play-off between Clone troopers and B1 battledroids:
+You can see that we have specified a 'dataset' from which all of
+the unit roster can be drawn from; for specifics of how this file should
+be oriented, see the documentation. We then need to specify 
+units to create to form an army. For example, in this Star Wars 
+example, we could specify a play-off between Clone troopers 
+and B1 battledroids.
+
+This is achieved using a meta-information object called a `Composite`, which holds
+a group of units of a given type.
 
 ```python
->>> battle.create_army([("B1 battledroid", 70), ("Clone Trooper", 50)])
-bsm.Battle(init=True, n_armies=2, simulated=False)
+armies = [
+    bsm.Composite("B1 battledroid", 70),
+    bsm.Composite("Clone Trooper", 50)
+]
+bat.create_army(armies)
 ```
 
-Here we call the `create_army` function, which internally creates an efficient `numpy` matrix, ready to perform the simulation. This is stored in the `battle.M_` object, a heterogenous `ndarray` element. From here, we might also want to specify the locations of our different blobs, as by default they will be sitting on top of each other at (0, 0).
+which internally creates an efficient `numpy` matrix, 
+ready to perform the simulation. This is stored in the `battle.M_` 
+object, a heterogenous `ndarray` element. By default, each Composite spawns
+on top of each other using a gaussian distribution at (0, 0). When initialising
+the Composite we can specify a new sampling using the `Sampling` class or
+override directly:
 
 ```python
->>> battle.apply_position([dict(name="normal", x_loc=10), dict(name="normal", loc=0)])
-bsm.Battle(init=True, n_armies=2, simulated=False)
+bat.composition_[1].pos = bsm.Sampling("normal", 10., 2.)
 ```
 
-Here the first element of each tuple represents the mean of the gaussian distribution, and the second element refers to the variance (or spread). From here, all we need to do now is simulate this:
+And now to simulate:
 
 ```python
->>> F = battle.simulate()
+F = bat.simulate()
 ```
 
-By default, the simulation function will make a record of important parameters at each step and then return these parameters as a `pandas.DataFrame` at the end in *long form* (with a cached element called `sim_`). In addition, because you want to see what's going on - we can animate the frames using this convenience method within the battle object:
+By default, the simulation function will make a record of
+important parameters at each step and then return these 
+parameters as a heterogenous `np.ndarray` at the end 
+in *long form* (with a cached element called `sim_`). 
+In addition, because you want to see what's going on - we can 
+animate the frames using this convenience method within
+the Battle object:
 
 ```python
->>> battle.sim_jupyter()
+bat.sim_jupyter()
 ```
 
 ![Image not found](simulations/sim2.gif)
 
-Here `sim_jupyter` treats each unit object as a quiver arrow in 2-d space (position and direction facing it's enemy). The targets should move towards each other and attempt to kill each other. Dead units are represented as crosses **'x'** on the map. 
+Here `sim_jupyter` treats each unit object as a quiver 
+arrow in 2-d space (position and direction facing it's enemy).
+The targets should move towards each other and attempt to kill
+each other. Dead units are represented as crosses **'x'** on the map. 
 
 ![Image not found](images/quiver1.svg)
 
-The rest is for you to explore, tweak and enjoy watching arrows move towards each other and kill each other. We have extensive [examples](https://github.com/gregparkes/BattleSimulator/tree/master/examples) to look at within this repository.
+The rest is for you to explore, tweak and enjoy watching arrows
+move towards each other and kill each other. We have 
+extensive [examples](https://github.com/gregparkes/BattleSimulator/tree/master/examples) to look at within this repository.
 
 ## One step further: Repeated runs
 
-If you're interested in seeing how each team fare over multiple runs (to eliminate random biases), then `bsm.Battle` objects once defined, contain a `simulate_k()` method, where `k` specifies the number of runs you wish to complete. Unlike `simulate()` by itself, it does not return a `pandas.DataFrame` of frames, but rather the number of units from each team left standing at each iteration.
+If you're interested in seeing how each team fare over
+multiple runs (to eliminate random biases), then `bsm.Battle` 
+objects once defined, contain a `simulate_k()` method, 
+where `k` specifies the number of runs you wish to complete.
+Unlike `simulate()` by itself, it does not 
+return a `np.ndarray` of frames, but rather the 
+number of units from each team left standing at each iteration.
 
 ```python
 >>> runs = battle.simulate_k(k=40)
 ```
 
-This is the beginning of creating an interface similar to Machine Learning, whereby the outcome can be a classification (team) or regression (number of units surviving) target, and the unit compositions, aspects of the engine etc., can be inputs.
+This is the beginning of creating an interface similar 
+to Machine Learning, whereby the outcome can be a 
+classification (team) or regression 
+(number of units surviving) target, and the unit 
+compositions, aspects of the engine etc., can be inputs.
 
-## New in 0.3.6
+## New in v0.3.6
 
-There are a number of exciting changes in this current update, including:
+There are a number of exciting changes in this [current update](CHANGELOG.md), including:
 
 - Introduction of **Terrains**. This is a major expansion giving 3D pseudodepth to animated battles. Depth now influences movement speed of units, with terrain penalties applied (up to 50%) on higher hills. They also increase range for units on hills and increase damage when firing downhill on an enemy unit.
 - Introduction of *armor*. Armor acts as another health buffer to protect units from harm.
 
-Further changes can be found in the [Changelog](CHANGELOG.md).
-
 ## Teaching series
 
-As well as a fully-fledged package simulator, you can find [teaching material](https://github.com/gregparkes/BattleSimulator/tree/master/teaching) in Jupyter notebook form within the `teaching/` subfolder, that takes users through the development process of this package, compares and contrasts Object-Oriented (OO) implementations to numpy-esque implementations, their performance, plotting, animations and more. We hope you find this material interesting and will aid as you use the package and possibly develop packages of your own in the future.
+As well as a fully-fledged package simulator, you can find
+[teaching material](https://github.com/gregparkes/BattleSimulator/tree/master/teaching) in Jupyter 
+notebook form within the `teaching/` subfolder, that takes 
+users through the development process of this package, compares
+and contrasts Object-Oriented (OO) implementations to numpy-esque 
+implementations, their performance, plotting, animations and more. 
+We hope you find this material interesting and will aid as you use 
+the package and possibly develop packages of your own in the future.
 
 Material covered so far:
 
@@ -170,10 +209,10 @@ This is still in active development retracing the steps of the project. All lega
 
 * Include AI-based behavior that makes use of height (to occupy hills)
 * Develop 'defensive' AI.
-* Build objects in the terrain.
 
 ***
 
-Ensure that any use of this material is appropriately referenced and in compliance with the [license](LICENSE.txt).
+Ensure that any use of this material is appropriately referenced 
+and in compliance with the [license](LICENSE.txt).
 
 [![Run on Repl.it](https://repl.it/badge/github/gregparkes/BattleSimulator)](https://repl.it/github/gregparkes/BattleSimulator)

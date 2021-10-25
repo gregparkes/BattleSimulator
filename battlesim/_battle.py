@@ -11,13 +11,12 @@ from typing import Callable, Dict, List, Optional, Tuple, Union
 import numpy as np
 import pandas as pd
 
-from battlesim.simulation import simulate_battle as sim_battle
 from battlesim.terra import Terrain
 from . import _utils
 from .__defaults import default_db
 from .distrib import Composite
 from .plot import loop_colors, quiver_fight
-from .simulation import _ai as AI, _target
+from .simulation import _ai as AI, _target, simulate_battle as sim_battle
 
 
 class Battle:
@@ -73,7 +72,7 @@ class Battle:
         return np.zeros(n, dtype=np.dtype([
             ("id", "u4"), ("target", "u4"), ("x", "f4"), ("y", "f4"),
             ("hp", "f4"), ("armor", "f4"), ("dmg", "f4"), ("range", "f4"), ("speed", "f4"),
-            ("acc", "f4"), ("dodge", "f4"), ("xtile", "u2"), ("ytile", "u2"),
+            ("acc", "f4"), ("dodge", "f4"), ("xtile", "f4"), ("ytile", "f4"),
             ("utype", "u1"), ("team", "u1"), ("ai_func_index", "u1")
         ], align=True))
 

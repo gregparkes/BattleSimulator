@@ -5,7 +5,7 @@ sudo: false
 language: python
 
 # python version is 3.7
-python: 3.7
+python: 3.8
 
 # install codecov pip dependency
 install:

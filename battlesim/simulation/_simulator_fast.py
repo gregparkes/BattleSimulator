@@ -18,11 +18,6 @@ from battlesim import _mathutils
 __all__ = ["simulate_battle"]
 
 
-def frame_columns():
-    """Column names w.r.t frame dataframe."""
-    return "army", "allegiance", "alive", "armor", "hp", "x", "y", "dir_x", "dir_y"
-
-
 @njit
 def _copy_frame(Frames, M, dx, dy, dist, i):
     # copy over data from M into frames.
@@ -40,21 +35,16 @@ def _copy_frame(Frames, M, dx, dy, dist, i):
     return
 
 
-@jit
+@njit
 def _loop_units(M,
                 luck,
                 dists,
                 dx,
                 dy,
                 enemy_targets,
-                Z_m,
-                teams):
+                Z_m):
     """ Loops over the units and executes the function. """
     running = True
-
-    for g in range(teams.shape[0]):
-        # update enemy targets.
-        enemy_targets[g] = np.where((M['hp'] > 0.) & (M["team"] != teams[g]))[0]
 
     for i in range(M.shape[0]):
 
@@ -63,46 +53,52 @@ def _loop_units(M,
             # AI-based decision for attack/defend.
             k = M['ai_func_index'][i]
             if k == 0:
-                running = AI.aggressive(
-                    # the main data matrix.
-                    M,
-                    # calculated 'luck' rolls for round
-                    luck,
-                    # euclidean distance to targets
-                    dists,
-                    # directional derivatives to targets
-                    dx, dy,
-                    # group indices (targets to i, enemies of i, allies of i)
-                    enemy_targets[M['team'][i]],
-                    #ally_targets[M['team'][i]],
-                    # variables to do with terrain.
-                    Z_m,
-                    # current unit under examination - index.
-                    i
-                )
+                running = AI.aggressive(M, luck, dists, dx, dy, enemy_targets[M['team'][i]], Z_m, i)
             elif k == 1:
-                running = AI.hit_and_run(
-                    # the main data matrix.
-                    M,
-                    # calculated 'luck' rolls for round
-                    luck,
-                    # euclidean distance to targets
-                    dists,
-                    # directional derivatives to targets
-                    dx, dy,
-                    # group indices (targets to i, enemies of i, allies of i)
-                    enemy_targets[M['team'][i]],
-                    #ally_targets[M['team'][i]],
-                    # variables to do with terrain.
-                    Z_m,
-                    # current unit under examination - index.
-                    i
-                )
+                running = AI.hit_and_run(M, luck, dists, dx, dy, enemy_targets[M['team'][i]], Z_m, i)
     return running
 
 
 @njit
-def _step_through(M, Z, max_step, teams, enemy_targets, bounds, frames, ret_frames):
+def _step_through_update(M, Z, max_step, teams, enemy_targets, bounds, frames):
+    t = 0
+    running = True
+
+    zx_index = np.array([0, Z.shape[0]], dtype=np.int64)
+    zy_index = np.array([0, Z.shape[1]], dtype=np.int64)
+    xb = bounds[:2]
+    yb = bounds[2:]
+
+    # begin loop
+    while (t < max_step) and running:
+        """# perform a boundary check."""
+        _mathutils.boundary_check2(bounds, M["x"], M['y'])
+        # iterate through and cast every tile element from interpolation.
+        M['xtile'] = np.interp(M['x'], xb, zx_index)
+        M['ytile'] = np.interp(M['y'], yb, zy_index)
+        """# pre-compute the direction derivatives and magnitude/distance for each unit to it's target in batch."""
+        dx = M['x'][M['target']] - M['x']
+        dy = M['y'][M['target']] - M['y']
+        dists = _mathutils.euclidean_distance(dx, dy)
+        """# pre-compute the 'luck' of each unit with random numbers."""
+        round_luck = np.random.rand(M.shape[0])
+        # loop over enemy target lists and update.
+        for g in range(teams.shape[0]):
+            # update enemy targets.
+            enemy_targets[g] = np.where((M['hp'] > 0.) & (M["team"] != teams[g]))[0]
+
+        """# copy a frame"""
+        _copy_frame(frames, M, dx, dy, dists, t)
+
+        """# iterate over units and call AI function."""
+        running = _loop_units(M, round_luck, dists, dx, dy,
+                              enemy_targets, Z)
+        t += 1
+    return t
+
+
+@njit
+def _step_through_noframe(M, Z, max_step, teams, enemy_targets, bounds):
     """ steps through the simulation. """
     t = 0
     running = True
@@ -117,32 +113,29 @@ def _step_through(M, Z, max_step, teams, enemy_targets, bounds, frames, ret_fram
         """# perform a boundary check."""
         _mathutils.boundary_check2(bounds, M["x"], M['y'])
         # lerp to update all units tile position
-        xf = np.interp(M['x'], xb, zx_index)
-        yf = np.interp(M['y'], yb, zy_index)
-        M['xtile'] = np.trunc(xf)
-        M['ytile'] = np.trunc(yf)
+        M['xtile'] = np.interp(M['x'], xb, zx_index)
+        M['ytile'] = np.interp(M['y'], yb, zy_index)
         """# pre-compute the direction derivatives and magnitude/distance for each unit to it's target in batch."""
         dx = M['x'][M['target']] - M['x']
         dy = M['y'][M['target']] - M['y']
         dists = _mathutils.euclidean_distance(dx, dy)
         """# pre-compute the 'luck' of each unit with random numbers."""
         round_luck = np.random.rand(M.shape[0])
-        """# copy a frame"""
-        if ret_frames:
-            _copy_frame(frames, M, dx, dy, dists, t)
-
+        # loop over enemy target lists and update.
+        for g in range(teams.shape[0]):
+            # update enemy targets.
+            enemy_targets[g] = np.where((M['hp'] > 0.) & (M["team"] != teams[g]))[0]
         """# iterate over units and call AI function."""
         running = _loop_units(M, round_luck, dists, dx, dy,
-                              enemy_targets,
-                              Z, teams)
+                              enemy_targets, Z)
         t += 1
     return t
 
 
 def simulate_battle(M,
                     terrain,
-                    max_step=100,
-                    ret_frames=True):
+                    max_step: int = 100,
+                    ret_frames: bool = True):
     """
     Given a Numpy Matrix of units, simulate a fight.
 
@@ -186,14 +179,14 @@ def simulate_battle(M,
             (max_step + 1, M.shape[0]),
             dtype=np.dtype([("x", "f4"), ("y", "f4"), ("target", "u4"),
                             ("hp", "f4"), ("armor", "f4"), ("ddx", "f4"), ("ddy", "f4"),
-                            ("xtile", "u4"), ("ytile", "u4"), ("team", "u1"), ("utype", "u1")
+                            ("team", "u1"), ("utype", "u1")
                             ], align=True)
         )
-        t = _step_through(M, Z, max_step,
-                          teams, enemy_targets, bounds,
-                          frames, True)
+        t = _step_through_update(M, Z, max_step,
+                                 teams, enemy_targets, bounds,
+                                 frames)
         return frames[:t]
     else:
-        t = _step_through(M, Z, max_step, teams, enemy_targets,
-                          bounds, np.array([0.]), False)
-        return np.asarray([np.argwhere((M["hp"] > 0) & (M["team"] == T)).flatten().shape[0] for T in teams])
+        t = _step_through_noframe(M, Z, max_step, teams, enemy_targets,
+                                  bounds)
+        return np.array([np.sum(np.logical_and(M["hp"] > 0., M["team"] == T)) for T in teams])

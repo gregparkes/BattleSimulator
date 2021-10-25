@@ -4,7 +4,7 @@ Basic set up file
 
 from setuptools import setup, find_packages
 
-with open("README.md","r") as fh:
+with open("README.md", "r") as fh:
     long_description = fh.read()
 
 setup(
@@ -19,10 +19,9 @@ setup(
     license="GPL-3.0",
     packages=find_packages(),
     zip_safe=False,
-    python_requires='>=3.6',
+    python_requires='>=3.7',
     install_requires=[
         "numpy>=1.11.0",
-        "scipy>=1.3",
         "pandas>=0.25.1",
         "matplotlib>=3.1.1",
         "numba>=0.45"
