@@ -36,3 +36,5 @@ tags
 .ipynb_checkpoints/
 .pytest_cache/
 .cache/
+
+Experimental.ipynb

@@ -273,6 +273,12 @@ class Battle:
         -------
         self
         """
+        if not isinstance(army_set, (list, tuple)):
+            raise TypeError("`army_set` must be a List/Tuple of Composites")
+
+        if not all(isinstance(a, Composite) for a in army_set):
+            raise TypeError("all instances within `army_set` must be composites.")
+
         self._comps = army_set
         # assign unit roster, n for roster
         self._unit_roster = [u.name.lower() for u in army_set]
