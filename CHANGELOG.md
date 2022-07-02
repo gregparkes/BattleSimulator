@@ -2,11 +2,11 @@
 
 All notable changes to this project will be documented in this file.
 
-## [0.3.7] - 2020-10-23 (In Development)
+## [0.3.7] - 2020-10-23
 ### Added
 - `Composite` class to create armies with. This holds all the meta information for a unit group.
 - `Sampling` class. Lightweight replacement for `Distribution`.
-- `tqdm` package support with simulate_k method.
+- Optional `tqdm` package support with simulate_k method.
 
 ### Changed
 - Significant internal cleaning of `Battle` object.

@@ -26,9 +26,16 @@ will hopefully love this package as a lot of the basic ideas are derived from th
     :alt: Image not found
     :align: center
 
-The code for the primary engine is found in ``battlesim``, and implementations/
-examples are found in the Jupyter notebooks. Animations should display
-properly in these notebooks.
+Main Features
+-------------
+
+Here are just a few things that ``battlesim`` aims to do well:
+
+    - Formulate your simulation in a few lines of code from scratch.
+    - Scales up to thousands (and 10s of thousands) of units
+    - Flexibility: unit values are taken from a data file with flexible AI options
+    - Performance: Just-in-time compiling (JIT) can manage thousands of units
+    - Visualisation: Animations can be customized to change look-and-feel
 
 Installation
 ------------
@@ -54,7 +61,7 @@ From PyPI
 ~~~~~~~~~
 
 If you have working versions of the dependencies, similarly install
-using `pip <https://pypi.org/project/battlesim/>`__ (version 0.3.6)::
+using `pip <https://pypi.org/project/battlesim/>`__ (version 0.3.7)::
 
     pip install battlesim
 

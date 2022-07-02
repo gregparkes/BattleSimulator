@@ -27,7 +27,7 @@ from .terra import Terrain
 from . import terra, distrib, plot, simulation
 from . import __legacy
 
-__version__ = "0.3.6"
+__version__ = "0.3.7"
 __name__ = "battlesim"
 __doc__ = """
 battlesim - Modelling and animating simulated battles between units in Python.

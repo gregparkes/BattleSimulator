@@ -9,7 +9,7 @@ with open("README.rst", "r") as fh:
 
 setup(
     name="battlesim",
-    version="0.3.6",
+    version="0.3.7",
     description="A python package for simulating battles and visualizing them in animation",
     long_description=long_description,
     long_description_content_type="text/markdown",
