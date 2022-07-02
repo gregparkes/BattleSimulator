@@ -12,6 +12,7 @@ class Composite:
             self.pos = pos_dist
         else:
             self.pos = Sampling("normal")
+        
         self.init_ai = init_ai
         self.rolling_ai = rolling_ai
         self.decision_ai = decision_ai

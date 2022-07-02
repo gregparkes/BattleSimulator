@@ -10,12 +10,13 @@ from typing import Callable, Dict, List, Optional, Tuple, Union
 
 import numpy as np
 import pandas as pd
+from matplotlib import colors
 
 from battlesim.terra import Terrain
 from . import _utils
 from .__defaults import default_db
 from .distrib import Composite
-from .plot import loop_colors, quiver_fight
+from .plot import quiver_fight
 from .simulation import _ai as AI, _target, simulate_battle as sim_battle
 
 
@@ -76,13 +77,6 @@ class Battle:
             ("utype", "u1"), ("team", "u1"), ("ai_func_index", "u1")
         ], align=True))
 
-    @staticmethod
-    def _generate_S(g: int):
-        return np.zeros(g, dtype=np.dtype([
-            ("id", "u4"), ("dmg", "f4"), ("range", "f4"), ("speed", "f4"),
-            ("acc", "f4"), ("dodge", "f4"), ("group", "u1"), ("utype", "u1"), ("team", "u1"),
-        ], align=True))
-
     def _loading_bar(self, k: int):
         if self.use_tqdm and _utils.is_tqdm_installed(False):
             from tqdm import tqdm
@@ -100,7 +94,7 @@ class Battle:
 
     def _plot_simulation(self, func: Callable):
         labels = self.allegiances_.to_dict()
-        cols = _utils.slice_loop(loop_colors(), len(self.allegiances_))
+        cols = _utils.slice_loop(colors.BASE_COLORS.keys(), len(self.allegiances_))
         # call plotting function - with or without terra
         if self.T_ is not None:
             Q = func(self.sim_, self.T_, labels, cols)
@@ -335,7 +329,7 @@ class Battle:
 
     """ ----------------------------- SIMULATION ----------------------------- """
 
-    def simulate(self):
+    def simulate(self, verbose: int = 0):
         """
         Runs the 'simulate_battle' algorithm. Creates and passes a copy to simulate..
 

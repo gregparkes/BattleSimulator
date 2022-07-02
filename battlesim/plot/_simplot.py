@@ -8,7 +8,7 @@ Created on Fri Feb 22 14:30:45 2019
 from functools import reduce
 import numpy as np
 import matplotlib.pyplot as plt
-from matplotlib import animation
+from matplotlib import animation, colors
 import itertools as it
 
 from battlesim._utils import slice_loop
@@ -16,13 +16,7 @@ from battlesim._utils import slice_loop
 from matplotlib.lines import Line2D
 
 # all functions to import
-__all__ = ["quiver_fight", 'loop_colors']
-
-
-def loop_colors():
-    """Provides a looping list of matplotlib colors."""
-    return ("red", "blue", "green", "orange", "purple", "brown", "black",
-            "cyan", "yellow")
+__all__ = ["quiver_fight"]
 
 
 def quiver_fight(frames: np.ndarray,
@@ -84,7 +78,7 @@ def quiver_fight(frames: np.ndarray,
                                     ["team%d" % i for i in it.islice(it.count(1), 0, n_allegiances)]))
     if len(allegiance_color) != n_allegiances:
         allegiance_color = dict(zip(allegiances.tolist(),
-                                    slice_loop(loop_colors(), n_allegiances)))
+                                    slice_loop(colors.BASE_COLORS.keys(), n_allegiances)))
     # unique units.
     Uunits = np.unique(frames['utype'])
     combs = list(it.product(allegiances, Uunits))
