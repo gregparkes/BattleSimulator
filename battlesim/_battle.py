@@ -12,12 +12,15 @@ import numpy as np
 import pandas as pd
 from matplotlib import colors
 
+from battlesim.plot._simplot import quiver_fight
 from battlesim.terra import Terrain
+
 from . import _utils
 from .__defaults import default_db
 from .distrib import Composite
-from battlesim.plot._simplot import quiver_fight
-from .simulation import _ai as AI, _target, simulate_battle as sim_battle
+from .simulation import _ai as AI
+from .simulation import _target
+from .simulation import simulate_battle as sim_battle
 
 
 class Battle:

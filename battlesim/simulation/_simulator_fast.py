@@ -10,8 +10,8 @@ This class handles the primary simulator functions given some data.
 import numpy as np
 from numba import njit, typed
 
-from battlesim.simulation import _ai as AI
 from battlesim import _mathutils
+from battlesim.simulation import _ai as AI
 
 ############################################################################
 

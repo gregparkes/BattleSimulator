@@ -8,16 +8,18 @@ Created on Wed Oct  2 16:45:50 2019
 This file determines different background 'terrains' to have for any given map.
 This can be fixed size or infinite if it follows some mathematical function.
 """
-import numpy as np
-from matplotlib.pyplot import subplots
 from typing import Optional, Tuple
 
-from battlesim._mathutils import minmax
-from ._noise import create_perlin_map
+import numpy as np
+from matplotlib.pyplot import subplots
+
 from battlesim import _utils
+from battlesim._mathutils import minmax
+
+from ._noise import create_perlin_map
 
 
-def get_tile_size(dim: Tuple[float, float, float, float], res: float):
+def get_tile_size(dim: Tuple[float, float, float, float], res: float) -> Tuple[int, int]:
     """Returns the tile size of the resolution."""
     return int(np.abs(dim[0] - dim[1]) // res), int(np.abs(dim[2] - dim[3]) // res)
 

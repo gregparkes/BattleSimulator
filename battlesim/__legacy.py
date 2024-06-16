@@ -6,14 +6,15 @@ Created on Fri Oct  4 15:34:25 2019
 @author: gparkes
 """
 import itertools as it
+import os
 import random
 import time
 from copy import deepcopy
-import os
+
 import matplotlib.pyplot as plt
-from matplotlib import animation
 import numpy as np
 import pandas as pd
+from matplotlib import animation
 
 __units__ = ["Unit1"]
 __simulations__ = ["basic_simulation%d" % (i + 1) for i in range(4)]

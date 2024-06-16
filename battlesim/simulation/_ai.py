@@ -6,6 +6,7 @@ Created on Tue Oct  8 11:07:18 2019
 @author: gparkes
 """
 import math
+
 from numba import njit
 
 from . import _damage, _hit, _move

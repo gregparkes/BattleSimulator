@@ -5,15 +5,15 @@ Created on Fri Feb 22 14:30:45 2019
 
 @author: gparkes
 """
-from functools import reduce
-import numpy as np
-import matplotlib.pyplot as plt
-from matplotlib import animation, colors
 import itertools as it
+from functools import reduce
+
+import matplotlib.pyplot as plt
+import numpy as np
+from matplotlib import animation, colors
+from matplotlib.lines import Line2D
 
 from battlesim._utils import slice_loop
-
-from matplotlib.lines import Line2D
 
 # all functions to import
 __all__ = ["quiver_fight"]

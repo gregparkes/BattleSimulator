@@ -1,11 +1,11 @@
 """The initialization for the battlesim package."""
 
 # imports
-from ._battle import Battle # noqa: F401
-from .distrib import Composite, Sampling # noqa: F401
-from .terra import Terrain # noqa: F401
-from . import terra, distrib, plot, simulation # noqa: F401
-from . import __legacy # noqa: F401
+from . import __legacy  # noqa: F401
+from . import distrib, plot, simulation, terra  # noqa: F401
+from ._battle import Battle  # noqa: F401
+from .distrib import Composite, Sampling  # noqa: F401
+from .terra import Terrain  # noqa: F401
 
 __version__ = "0.3.7"
 __doc__ = """
