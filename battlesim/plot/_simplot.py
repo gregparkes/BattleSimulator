@@ -19,10 +19,9 @@ from matplotlib.lines import Line2D
 __all__ = ["quiver_fight"]
 
 
-def quiver_fight(frames: np.ndarray,
-                 terrain=None,
-                 allegiance_label={},
-                 allegiance_color={}):
+def quiver_fight(
+    frames: np.ndarray, terrain=None, allegiance_label={}, allegiance_color={}
+):
     """
     Generates an animated quiver plot with units moving around the arena
     and attacking each other. Requires the Frames object as output from a 'battle.simulate()'
@@ -62,7 +61,7 @@ def quiver_fight(frames: np.ndarray,
     # plot the terra underneath
     if terrain is not None:
         # plots the terrain using the object.
-        terrain.plot(ax, alpha=.2)
+        terrain.plot(ax, alpha=0.2)
 
     # hide axes labels
     ax.get_xaxis().set_visible(False)
@@ -74,13 +73,21 @@ def quiver_fight(frames: np.ndarray,
 
     # create defaults if the dictionary size does not match the allegiance flags
     if len(allegiance_label) != n_allegiances:
-        allegiance_label = dict(zip(allegiances.tolist(),
-                                    ["team%d" % i for i in it.islice(it.count(1), 0, n_allegiances)]))
+        allegiance_label = dict(
+            zip(
+                allegiances.tolist(),
+                ["team%d" % i for i in it.islice(it.count(1), 0, n_allegiances)],
+            )
+        )
     if len(allegiance_color) != n_allegiances:
-        allegiance_color = dict(zip(allegiances.tolist(),
-                                    slice_loop(colors.BASE_COLORS.keys(), n_allegiances)))
+        allegiance_color = dict(
+            zip(
+                allegiances.tolist(),
+                slice_loop(colors.BASE_COLORS.keys(), n_allegiances),
+            )
+        )
     # unique units.
-    Uunits = np.unique(frames['utype'])
+    Uunits = np.unique(frames["utype"])
     combs = list(it.product(allegiances, Uunits))
 
     """
@@ -93,23 +100,47 @@ def quiver_fight(frames: np.ndarray,
     dead = []
 
     for a, un in combs:
-        f1 = frames[0][reduce(np.logical_and, [frames[0]['hp'] > 0., frames[0]['utype'] == un, frames[0]['team'] == a])]
-        #f1 = frames.loc[0].query("(allegiance==@a) & (army==@un) & alive")
-        team_alive = ax.quiver(f1['x'], f1['y'], f1['ddx'], f1['ddy'], color=allegiance_color[a], alpha=.5,
-                               scale=30, width=0.015, pivot="mid")
+        f1 = frames[0][
+            reduce(
+                np.logical_and,
+                [
+                    frames[0]["hp"] > 0.0,
+                    frames[0]["utype"] == un,
+                    frames[0]["team"] == a,
+                ],
+            )
+        ]
+        # f1 = frames.loc[0].query("(allegiance==@a) & (army==@un) & alive")
+        team_alive = ax.quiver(
+            f1["x"],
+            f1["y"],
+            f1["ddx"],
+            f1["ddy"],
+            color=allegiance_color[a],
+            alpha=0.5,
+            scale=30,
+            width=0.015,
+            pivot="mid",
+        )
         qalive.append(team_alive)
 
-        team_dead, = ax.plot([], [], 'x', color=allegiance_color[a], alpha=.2, markersize=5.)
+        (team_dead,) = ax.plot(
+            [], [], "x", color=allegiance_color[a], alpha=0.2, markersize=5.0
+        )
         dead.append(team_dead)
 
     # configure legend, extras.
     # set plot bounds
     xmin, xmax, ymin, ymax = terrain.bounds_
-    ax.set_xlim(xmin - .5, xmax + .5)
-    ax.set_ylim(ymin - .5, ymax + .5)
+    ax.set_xlim(xmin - 0.5, xmax + 0.5)
+    ax.set_ylim(ymin - 0.5, ymax + 0.5)
     # design custom legend
-    custom_lines = [Line2D([0], [0], color=allegiance_color[a], lw=4) for a in allegiances]
-    ax.legend(custom_lines, [allegiance_label[a] for a in allegiances], loc="upper right")
+    custom_lines = [
+        Line2D([0], [0], color=allegiance_color[a], lw=4) for a in allegiances
+    ]
+    ax.legend(
+        custom_lines, [allegiance_label[a] for a in allegiances], loc="upper right"
+    )
     fig.tight_layout()
     plt.close()
 
@@ -117,8 +148,17 @@ def quiver_fight(frames: np.ndarray,
     def _init():
         for j, (_a, _un) in enumerate(combs):
             # replaced query with loc as it's way faster.
-            new_alive = frames[0][reduce(np.logical_and, [frames[0]['hp'] > 0., frames[0]['utype'] == _un, frames[0]['team'] == _a])]
-            #new_alive = frames.loc[0].query("(allegiance==@_a) & (army==@_un) & alive")
+            new_alive = frames[0][
+                reduce(
+                    np.logical_and,
+                    [
+                        frames[0]["hp"] > 0.0,
+                        frames[0]["utype"] == _un,
+                        frames[0]["team"] == _a,
+                    ],
+                )
+            ]
+            # new_alive = frames.loc[0].query("(allegiance==@_a) & (army==@_un) & alive")
             if new_alive.shape[0] > 0:
                 qalive[j].set_UVC(new_alive["ddx"], new_alive["ddy"])
 
@@ -129,13 +169,15 @@ def quiver_fight(frames: np.ndarray,
         # i is the frame, aligns with frames.
         for j, (_a, _un) in enumerate(combs):
             # replaced query with loc as it's way faster.
-            alive_i = frames[i]['hp'] > 0.
-            team_type_i = np.logical_and(frames[i]['team'] == _a, frames[i]['utype'] == _un)
+            alive_i = frames[i]["hp"] > 0.0
+            team_type_i = np.logical_and(
+                frames[i]["team"] == _a, frames[i]["utype"] == _un
+            )
 
             new_alive = frames[i][np.logical_and(team_type_i, alive_i)]
             new_dead = frames[i][np.logical_and(team_type_i, ~alive_i)]
-            #new_alive = frames.loc[i].query("(allegiance == @_a) & (alive) & (army == @_un)")
-            #new_dead = frames.loc[i].query("(allegiance == @_a) & (not alive) & (army == @_un)")
+            # new_alive = frames.loc[i].query("(allegiance == @_a) & (alive) & (army == @_un)")
+            # new_dead = frames.loc[i].query("(allegiance == @_a) & (not alive) & (army == @_un)")
             if len(new_alive) > 0:
                 qalive[j].set_offsets(np.vstack((new_alive["x"], new_alive["y"])).T)
                 # force N to be number of alive samples to prevent error
@@ -146,5 +188,6 @@ def quiver_fight(frames: np.ndarray,
 
         return (*qalive, *dead)
 
-    return animation.FuncAnimation(fig, _animate, init_func=_init,
-                                   interval=100, frames=N_frames, blit=True)
+    return animation.FuncAnimation(
+        fig, _animate, init_func=_init, interval=100, frames=N_frames, blit=True
+    )

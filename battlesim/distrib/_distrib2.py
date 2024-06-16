@@ -2,19 +2,26 @@ import numpy as np
 
 
 class Sampling:
-    """ Wrapper class for handling numpy.random distributions. """
+    """Wrapper class for handling numpy.random distributions."""
 
     def __init__(self, name, *args):
         """name must be one of []"""
-        self.__accepted_dists = {'beta', 'binomial', 'chisquare', 'exponential',
-                                 'laplace', 'lognormal', 'normal',
-                                 'uniform'}
+        self.__accepted_dists = {
+            "beta",
+            "binomial",
+            "chisquare",
+            "exponential",
+            "laplace",
+            "lognormal",
+            "normal",
+            "uniform",
+        }
         self.name = name
         self.args = args
 
     @property
     def name(self):
-        """ The name of the numpy distribution to call. """
+        """The name of the numpy distribution to call."""
         return self._name
 
     @name.setter
@@ -29,7 +36,7 @@ class Sampling:
         return getattr(np.random, self.name)
 
     def sample(self, n):
-        """ Samples a 1d from random. """
+        """Samples a 1d from random."""
         return self.f(*self.args, size=(n,))
 
     def __repr__(self):

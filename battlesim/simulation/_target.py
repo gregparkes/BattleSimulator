@@ -31,33 +31,40 @@ passed to the functions.
         -1 if not valid target chosen.
 
 """
+from typing import Callable
 import numpy as np
 from numba import njit
 
 from battlesim import _mathutils
 
 
-def get_function_names():
+def get_function_names() -> list[str]:
+    """Returns the function names."""
     return ["random", "nearest", "close_weak"]
 
 
-def get_functions():
+def get_functions() -> list[Callable]:
+    """Returns the function objects."""
     return [random, nearest, close_weak]
 
 
-def get_map_functions():
+def get_map_functions() -> dict[str, Callable]:
+    """Returns the function objects."""
     return dict(zip(get_function_names(), get_functions()))
 
 
-def get_global_function_names():
+def get_global_function_names() -> list[str]:
+    """Gets global function names."""
     return ["global_" + n for n in get_function_names()]
 
 
-def get_global_functions():
+def get_global_functions() -> list[Callable]:
+    """Returns the function objects."""
     return [global_random, global_nearest, global_close_weak]
 
 
-def get_global_map_functions():
+def get_global_map_functions() -> dict[str, Callable]:
+    """Returns the function objects."""
     return dict(zip(get_global_function_names(), get_global_functions()))
 
 
@@ -86,7 +93,7 @@ def nearest(M, enemies, i):
     """
     if enemies.shape[0] > 0:
         # compute distances/magnitudes
-        distances = _mathutils.sq_euclidean_distance2(M['x'], M['y'], i, enemies)
+        distances = _mathutils.sq_euclidean_distance2(M["x"], M["y"], i, enemies)
         return enemies[np.argmin(distances)]
     else:
         return -1
@@ -108,19 +115,19 @@ def close_weak(M, enemies, i, wtc_ratio=0.7):
         to 1 prefer closer enemies, whereas values closer to 0 prefer weaker enemies
     """
     if enemies.shape[0] > 0:
-        distances = _mathutils.sq_euclidean_distance2(M['x'], M['y'], i, enemies)
+        distances = _mathutils.sq_euclidean_distance2(M["x"], M["y"], i, enemies)
 
         return enemies[
             np.argmin(
-                (_mathutils.no_mean(M['hp'][enemies]) * (1. - wtc_ratio)) +
-                (_mathutils.no_mean(distances) * wtc_ratio)
+                (_mathutils.no_mean(M["hp"][enemies]) * (1.0 - wtc_ratio))
+                + (_mathutils.no_mean(distances) * wtc_ratio)
             )
         ]
     else:
         return -1
 
 
-"""######################### GLOBAL TARGET ASSIGNMENTS #######################################"""
+# ------------------------ GLOBAL TARGET ASSIGNMENTS -----------------------
 
 """
 A selection of algorithms for deciding all enemies to target.
@@ -151,51 +158,55 @@ all units need a new target.
 
 @njit
 def global_random(M, group_i):
+    """Computes a random target for every unit within the M matrix."""
     # define
-    sel = M['id'] == group_i
-    t = M['team'][sel][0]
+    sel = M["id"] == group_i
+    t = M["team"][sel][0]
     # get unit IDs that are not equal to this team for enemies.
-    id_not, = np.where(M['team'] != t)
+    (id_not,) = np.where(M["team"] != t)
     # set the index for these guys
     return np.random.choice(id_not, sel.sum())
 
 
 @njit
 def global_nearest(M, group_i):
+    """Computes the nearest target for every unit within the M matrix."""
     # define
-    selector = M['id'] == group_i
-    t = M['team'][selector][0]
+    selector = M["id"] == group_i
+    t = M["team"][selector][0]
     # calculate distance matrix, with offset to ignore diagonal, with random noise
-    D = _mathutils.sq_distance_matrix(M['x'], M['y'])
+    dist_matrix_sq = _mathutils.sq_distance_matrix(M["x"], M["y"])
     # only calculate for diaginal indices.
-    np.fill_diagonal(D, np.max(D))
+    np.fill_diagonal(dist_matrix_sq, np.max(dist_matrix_sq))
     # sprinkle on random noise
-    D += np.random.rand(D.shape[0], D.shape[0]) / 4.
+    dist_matrix_sq += np.random.rand(dist_matrix_sq.shape[0], dist_matrix_sq.shape[0]) / 4.0
     # get unit IDs that are not equal to this team for enemies.
-    id_not, = np.where(M['team'] != t)
-    id_is, = np.where(selector)
+    (id_not,) = np.where(M["team"] != t)
+    (id_is,) = np.where(selector)
     # use distance matrix and ids to select sub groups to find argmin
-    j = _mathutils.matrix_argmin(D[id_is, :][:, id_not])
+    j = _mathutils.matrix_argmin(dist_matrix_sq[id_is, :][:, id_not])
     return j
 
 
 @njit
 def global_close_weak(M, group_i, wtc_ratio=0.7):
+    """Computes the nearest weakest target for every unit within the M matrix."""
     # define
-    selector = M['id'] == group_i
-    t = M['team'][selector][0]
+    selector = M["id"] == group_i
+    t = M["team"][selector][0]
+    hp = M["hp"]
     # calculate distance matrix, with offset to ignore diagonal, with random noise
-    D = _mathutils.sq_distance_matrix(M['x'], M['y'])
-    np.fill_diagonal(D, np.max(D))
-    D += np.random.rand(D.shape[0], D.shape[0]) / 4.
+    dist_matrix_sq = _mathutils.sq_distance_matrix(M["x"], M["y"])
+    np.fill_diagonal(dist_matrix_sq, np.max(dist_matrix_sq))
+    dist_matrix_sq += np.random.rand(dist_matrix_sq.shape[0], dist_matrix_sq.shape[0]) / 4.0
 
     # return the enemy that is closest and lowest HP
-    hp_adj = _mathutils.no_mean(hp) * (1. - wtc_ratio)
-    dist_adj = _mathutils.no_mean(D) * wtc_ratio
+    hp_adj = _mathutils.no_mean(hp) * (1.0 - wtc_ratio)
+    dist_adj = _mathutils.no_mean(dist_matrix_sq) * wtc_ratio
 
     # get unit IDs that are not equal to this team for enemies.
-    id_not, = np.where(M['team'] != t)
-    id_is, = np.where(selector)
+    (id_not,) = np.where(M["team"] != t)
+    (id_is,) = np.where(selector)
     # use distance matrix and ids to select sub groups to find argmin
     j = _mathutils.matrix_argmin(dist_adj[id_is, :][:, id_not] + hp_adj[id_not])
     return j

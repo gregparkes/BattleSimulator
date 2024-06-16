@@ -24,16 +24,16 @@ def boundary_check2(bounds, X, Y):
 
 @njit
 def euclidean_distance(dX, dY):
-    """ Given dX, dY vectors, compute distances D vector from M[x] and M[y]"""
+    """Given dX, dY vectors, compute distances D vector from M[x] and M[y]"""
     D = np.empty_like(dX)
     for i in prange(D.shape[0]):
-        D[i] = np.sqrt(dX[i]*dX[i] + dY[i]*dY[i])
+        D[i] = np.sqrt(dX[i] * dX[i] + dY[i] * dY[i])
     return D
 
 
 @njit
 def sq_euclidean_distance(dX, dY):
-    """ squared euclidean distance, cheaper. """
+    """squared euclidean distance, cheaper."""
     D = np.empty_like(dX)
     for i in prange(D.shape[0]):
         D[i] = dX[i] * dX[i] + dY[i] * dY[i]
@@ -48,14 +48,14 @@ def sq_euclidean_distance2(X, Y, i, e_indices):
 
 @njit
 def sq_distance_matrix(X, Y):
-    """Where X, Y are vectors of (n,) length. """
+    """Where X, Y are vectors of (n,) length."""
     D = np.zeros((X.shape[0], Y.shape[0]), dtype=np.float64)
     # inplace op
     for i in prange(D.shape[0]):
         for j in range(i + 1, Y.shape[0]):
             dX = X[i] - X[j]
             dY = Y[i] - Y[j]
-            sq_dist = dX*dX + dY*dY
+            sq_dist = dX * dX + dY * dY
             # set transpose also.
             D[i, j] = D[j, i] = sq_dist
     return D
@@ -63,7 +63,7 @@ def sq_distance_matrix(X, Y):
 
 @njit
 def matrix_argmin(X):
-    """ Calculates argmin along axis=1 dim. """
+    """Calculates argmin along axis=1 dim."""
     A = np.empty(X.shape[0], dtype=np.int64)
     for i in prange(X.shape[0]):
         A[i] = np.argmin(X[i, :])
@@ -72,18 +72,18 @@ def matrix_argmin(X):
 
 @njit
 def minmax(X):
-    """ Scales X into the [0, 1] range. """
+    """Scales X into the [0, 1] range."""
     xm = np.min(X)
     return (X - xm) / (np.max(X) - xm)
 
 
 @njit
 def no_mean(X):
-    """ Remove the mean from every value in X. """
+    """Remove the mean from every value in X."""
     return X - np.mean(X)
 
 
 @njit
 def lerp(a1, a2, b1, b2, t):
-    """Linearly interpolates t from [a1, a2] domain into [b1, b2] domain, truncating to int. """
+    """Linearly interpolates t from [a1, a2] domain into [b1, b2] domain, truncating to int."""
     return a2 + (t - a1) * ((b2 - a2) / (b1 - a1))

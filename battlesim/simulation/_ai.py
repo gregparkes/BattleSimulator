@@ -6,7 +6,7 @@ Created on Tue Oct  8 11:07:18 2019
 @author: gparkes
 """
 import math
-from numba import jit, njit
+from numba import njit
 
 from . import _damage, _hit, _move
 from ._target import nearest
@@ -32,11 +32,11 @@ __all__ = get_function_names()
 
 @njit
 def _select_enemy(M, enemies, i):
-    if M['hp'][M['target'][i]] <= 0:
+    if M["hp"][M["target"][i]] <= 0:
         if enemies.shape[0] > 0:
             t = nearest(M, enemies, i)
             if t != -1:
-                M['target'][i] = t
+                M["target"][i] = t
                 return True
             else:
                 return False
@@ -61,11 +61,11 @@ def aggressive(M, luck, dists, dx, dy, xt, yt, enemies, Z, i):
     and if it isn't, moves towards it until it is, then attacks.
     """
     # fetch height for unit i given indices.
-    j = M['target'][i]
+    j = M["target"][i]
     z_i = Z[math.trunc(xt[i]), math.trunc(yt[i])]
     z_j = Z[math.trunc(xt[j]), math.trunc(yt[j])]
     # calculate updated range of unit
-    r_i = M['range'][i] * ((z_i ** 2 / 3.) + 1.)
+    r_i = M["range"][i] * ((z_i**2 / 3.0) + 1.0)
 
     """# use ai_map to dictionary-map the group number to the appropriate AI function"""
     if _select_enemy(M, enemies, i):
@@ -98,8 +98,8 @@ def hit_and_run(M, luck, dists, dx, dy, xt, yt, enemies, Z, i):
         j = M["target"][i]
         z_i = Z[math.trunc(xt[i]), math.trunc(yt[i])]
         z_j = Z[math.trunc(xt[j]), math.trunc(yt[j])]
-        range_i = M['range'][i] * ((z_i * z_i) / 3.) + 1.
-        range_j = M['range'][j] * ((z_j * z_j) / 3.) + 1.
+        range_i = M["range"][i] * ((z_i * z_i) / 3.0) + 1.0
+        range_j = M["range"][j] * ((z_j * z_j) / 3.0) + 1.0
 
         if (M["speed"][i] > M["speed"][j]) and (range_i > range_j):
 
@@ -122,8 +122,7 @@ def hit_and_run(M, luck, dists, dx, dy, xt, yt, enemies, Z, i):
                 return True
         else:
             # otherwise just perform an 'aggressive' model.
-            return aggressive(M, luck, dists, dx, dy,
-                              xt, yt, enemies, Z, i)
+            return aggressive(M, luck, dists, dx, dy, xt, yt, enemies, Z, i)
     else:
         return False
 

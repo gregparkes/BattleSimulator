@@ -1,34 +1,13 @@
-# utf-8
-
-"""
-The initialization for the battlesim package.
-"""
-
-""" This block handles the import needs of the package """
-hard_dependencies = ("numpy", "matplotlib", "pandas", "numba")
-missing_dependencies = []
-
-for dependency in hard_dependencies:
-    try:
-        __import__(dependency)
-    except ImportError as e:
-        missing_dependencies.append("{0}: {1}".format(dependency, str(e)))
-
-if missing_dependencies:
-    raise ImportError("Unable to import required dependencies:\n" + "\n".join(missing_dependencies))
-del hard_dependencies, dependency, missing_dependencies
-""" Block ends """
-
+"""The initialization for the battlesim package."""
 
 # imports
-from ._battle import Battle
-from .distrib import Composite, Sampling
-from .terra import Terrain
-from . import terra, distrib, plot, simulation
-from . import __legacy
+from ._battle import Battle # noqa: F401
+from .distrib import Composite, Sampling # noqa: F401
+from .terra import Terrain # noqa: F401
+from . import terra, distrib, plot, simulation # noqa: F401
+from . import __legacy # noqa: F401
 
 __version__ = "0.3.7"
-__name__ = "battlesim"
 __doc__ = """
 battlesim - Modelling and animating simulated battles between units in Python.
 ==============================================================================

@@ -10,7 +10,7 @@ This file is concerned with movement functions associated with each army group.
 There is the default 'move' and fancier options such as A*.
 """
 
-from numba import jit, float32
+from numba import jit
 
 __all__ = ["to_enemy"]
 
@@ -37,10 +37,10 @@ def to_enemy(M, dx, dy, dist, z_i, i):
     # modify dist to prevent it being zero
     D = dist[i] + 1e-12
     # cache the terra + speed influences.
-    terrain_tick = (1. - (z_i / 2.)) * M['speed'][i]
+    terrain_tick = (1.0 - (z_i / 2.0)) * M["speed"][i]
     # compute normed directional derivative and update.
-    M['x'][i] += (dx[i] / D) * terrain_tick
-    M['y'][i] += (dy[i] / D) * terrain_tick
+    M["x"][i] += (dx[i] / D) * terrain_tick
+    M["y"][i] += (dy[i] / D) * terrain_tick
 
 
 @jit(nopython=True)
@@ -56,7 +56,7 @@ def from_enemy(M, dx, dy, dist, z_i, i):
     # modify dist to prevent it being zero
     D = dist[i] + 1e-12
     # cache the terra + speed influences.
-    terrain_tick = (1. - (z_i / 2.)) * M['speed'][i]
+    terrain_tick = (1.0 - (z_i / 2.0)) * M["speed"][i]
     # compute normed directional derivative and update.
-    M['x'][i] -= (dx[i] / D) * terrain_tick
-    M['y'][i] -= (dy[i] / D) * terrain_tick
+    M["x"][i] -= (dx[i] / D) * terrain_tick
+    M["y"][i] -= (dy[i] / D) * terrain_tick

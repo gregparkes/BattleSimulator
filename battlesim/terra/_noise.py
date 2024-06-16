@@ -24,7 +24,7 @@ def smooth_noise(noise, x, y, noisewidth=100, noiseheight=100):
     x2 = (x1 + noisewidth - 1) % noisewidth
     y2 = (y1 + noiseheight - 1) % noiseheight
     # smooth the noise with bilinear interpolation
-    val = 0.
+    val = 0.0
     val += fractX * fractY * noise[y1, x1]
     val += (1 - fractX) * fractY * noise[y1, x2]
     val += fractX * (1 - fractY) * noise[y2, x1]
@@ -35,11 +35,11 @@ def smooth_noise(noise, x, y, noisewidth=100, noiseheight=100):
 @njit
 def turbulence(noise, x, y, size, dim_x, dim_y):
     """Adds turbulence at point [x, y]"""
-    val = 0.
+    val = 0.0
     init_size = size
     while size >= 1:
         val += smooth_noise(noise, x / size, y / size, dim_x, dim_y) * size
-        size /= 2.
+        size /= 2.0
     return 128 * val / init_size
 
 

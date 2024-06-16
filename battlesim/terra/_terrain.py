@@ -17,8 +17,7 @@ from ._noise import create_perlin_map
 from battlesim import _utils
 
 
-def get_tile_size(dim: Tuple[float, float, float, float],
-                  res: float):
+def get_tile_size(dim: Tuple[float, float, float, float], res: float):
     """Returns the tile size of the resolution."""
     return int(np.abs(dim[0] - dim[1]) // res), int(np.abs(dim[2] - dim[3]) // res)
 
@@ -38,11 +37,13 @@ class Terrain:
     way in which it is displayed.
     """
 
-    def __init__(self,
-                 dim: Tuple[float, float, float, float] = (0., 10., 0., 10.),
-                 res: float = .1,
-                 form: Optional[str] = "contour",
-                 dtype: Optional[str] = "perlin"):
+    def __init__(
+        self,
+        dim: Tuple[float, float, float, float] = (0.0, 10.0, 0.0, 10.0),
+        res: float = 0.1,
+        form: Optional[str] = "contour",
+        dtype: Optional[str] = "perlin",
+    ):
         """
         Defines a Terrain object.
 
@@ -119,19 +120,21 @@ class Terrain:
 
     def _m_size(self):
         x0, x1, y0, y1 = self.bounds_
-        return (int((x1-x0) / self.res_),
-                int((y1-y0) / self.res_))
+        return (int((x1 - x0) / self.res_), int((y1 - y0) / self.res_))
 
     def __repr__(self):
         return "Terrain(init={}, dtype='{}', dims={}, resolution={:0.3f})".format(
-            self.Z_ is not None, self.dtype, self.bounds_, self.res_)
+            self.Z_ is not None, self.dtype, self.bounds_, self.res_
+        )
 
     """##################################### FUNCTIONS ##################################################"""
 
     def get_grid(self):
         x0, x1, y0, y1 = self.bounds_
         """Returns the grid as an mgrid."""
-        x, y = np.linspace(x0, x1, self.Z_.shape[0]), np.linspace(y0, y1, self.Z_.shape[1])
+        x, y = np.linspace(x0, x1, self.Z_.shape[0]), np.linspace(
+            y0, y1, self.Z_.shape[1]
+        )
         return np.meshgrid(x, y)
 
     def generate(self, f=None):
@@ -168,7 +171,9 @@ class Terrain:
             fig, ax = subplots(figsize=(8, 6))
 
         if self.form_ == "grid":
-            ax.imshow(self.Z_, aspect="auto", cmap="binary", extent=self.bounds_, **kwargs)
+            ax.imshow(
+                self.Z_, aspect="auto", cmap="binary", extent=self.bounds_, **kwargs
+            )
         elif self.form_ == "contour" or self.form_ == "random":
             X, Y = self.get_grid()
             ax.contourf(X.T, Y.T, self.Z_, cmap="binary", extent=self.bounds_, **kwargs)

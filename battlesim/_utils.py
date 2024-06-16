@@ -18,11 +18,21 @@ def is_twotuple(L, type1, type2):
         for i, x in enumerate(L):
             if isinstance(x, tuple):
                 if len(x) != 2:
-                    raise ValueError("'L' element at index [{}] is not of size 2".format(i))
+                    raise ValueError(
+                        "'L' element at index [{}] is not of size 2".format(i)
+                    )
                 if not isinstance(x[0], type1):
-                    raise TypeError("x[0] element at index [{}] is not of type '{}'".format(i, type1))
+                    raise TypeError(
+                        "x[0] element at index [{}] is not of type '{}'".format(
+                            i, type1
+                        )
+                    )
                 if not isinstance(x[1], type2):
-                    raise TypeError("x[1] element at index [{}] is not of type '{}'".format(i, type2))
+                    raise TypeError(
+                        "x[1] element at index [{}] is not of type '{}'".format(
+                            i, type2
+                        )
+                    )
             else:
                 raise TypeError("'x' is not of type 'tuple'")
         return True
@@ -48,7 +58,9 @@ def is_ntuple(L, *types):
 def check_groups_in_db(groups, db):
     for group_name, count in groups:
         if group_name not in db.index:
-            raise ValueError("group '{}' not found in {}".format(group_name, db.index.tolist()))
+            raise ValueError(
+                "group '{}' not found in {}".format(group_name, db.index.tolist())
+            )
     return True
 
 
@@ -60,8 +72,15 @@ def slice_loop(loopable, n):
 def io_table_columns():
     """Accepted column names for a unit file."""
     return (
-        "Name", "Allegiance", "HP", "Armor", "Damage", "Accuracy",
-        "Miss", "Movement Speed", "Range"
+        "Name",
+        "Allegiance",
+        "HP",
+        "Armor",
+        "Damage",
+        "Accuracy",
+        "Miss",
+        "Movement Speed",
+        "Range",
     )
 
 
@@ -76,20 +95,24 @@ def io_table_descriptions():
         "Accuracy: the accuracy of the unit; an integer/float in the range [0, 100]",
         "Miss: the chance of the unit to miss an attack; an integer/float in the range [0, 100]",
         "Movement Speed: the movement speed of the unit; float.",
-        "Range: the range of the unit; integer or float, Must be > 0"
+        "Range: the range of the unit; integer or float, Must be > 0",
     )
 
 
 def check_unit_file(df):
-    """ Works inplace; no return """
+    """Works inplace; no return"""
     mappp = dict(zip(io_table_columns(), io_table_descriptions()))
     for m in io_table_columns():
         if m not in df.columns:
-            raise IOError("column '{}' not found in file and must be present. Description:::'{}'".format(m, mappp[m]))
+            raise IOError(
+                "column '{}' not found in file and must be present. Description:::'{}'".format(
+                    m, mappp[m]
+                )
+            )
 
 
 def preprocess_unit_file(df):
-    """ Works inplace; no return """
+    """Works inplace; no return"""
     # assign index
     df.set_index("Name", inplace=True)
     # assign int allegiance
@@ -119,6 +142,7 @@ def is_tqdm_installed(raise_error: bool = False):
     """Determines whether tqdm is installed."""
     try:
         from tqdm import tqdm  # noqa
+
         is_installed = True
     except ModuleNotFoundError:  # pragma: no cover
         is_installed = False

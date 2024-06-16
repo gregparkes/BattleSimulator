@@ -20,34 +20,46 @@ def quiver_frame(xpd, frame_i=0):
     # create plot
     fig = plt.figure(figsize=(8, 6))
     ax = fig.add_subplot(111)
-    ax.set_xlim(xpd.x.min() - 1., xpd.x.max() + 1.)
-    ax.set_ylim(xpd.y.min() - 1., xpd.y.max() + 1.)
+    ax.set_xlim(xpd.x.min() - 1.0, xpd.x.max() + 1.0)
+    ax.set_ylim(xpd.y.min() - 1.0, xpd.y.max() + 1.0)
     ax.set_xlabel("x")
     ax.set_ylabel("y")
 
-    frame0_r = xpd[0][np.logical_and(xpd[0]['hp'] > 0, xpd[0]['team'] == 0)]
-    frame0_c = xpd[0][np.logical_and(xpd[0]['hp'] > 0, xpd[0]['team'] == 1)]
+    frame0_r = xpd[0][np.logical_and(xpd[0]["hp"] > 0, xpd[0]["team"] == 0)]
+    frame0_c = xpd[0][np.logical_and(xpd[0]["hp"] > 0, xpd[0]["team"] == 1)]
 
-    #frame0 = xpd.query("(frame==@frame_i) & alive")
-    ax.quiver(frame0_r['x'],
-              frame0_r['y'],
-              frame0_r['ddx'],
-              frame0_r['ddy'],
-              color="red", label="Republic", alpha=.5,
-              scale=30, width=0.015, pivot="mid")
-    ax.quiver(frame0_c['x'],
-              frame0_c['y'],
-              frame0_c['ddx'],
-              frame0_c['ddy'],
-              color="blue", label="CIS", alpha=.5, scale=30,
-              width=0.015, pivot="mid")
+    # frame0 = xpd.query("(frame==@frame_i) & alive")
+    ax.quiver(
+        frame0_r["x"],
+        frame0_r["y"],
+        frame0_r["ddx"],
+        frame0_r["ddy"],
+        color="red",
+        label="Republic",
+        alpha=0.5,
+        scale=30,
+        width=0.015,
+        pivot="mid",
+    )
+    ax.quiver(
+        frame0_c["x"],
+        frame0_c["y"],
+        frame0_c["ddx"],
+        frame0_c["ddy"],
+        color="blue",
+        label="CIS",
+        alpha=0.5,
+        scale=30,
+        width=0.015,
+        pivot="mid",
+    )
     ax.legend(loc="best")
     fig.tight_layout()
     plt.show()
     return fig
 
 
-def accuracy_contour(M, index, acc_penalty=15., boxlim=15):
+def accuracy_contour(M, index, acc_penalty=15.0, boxlim=15):
     """
     Given a selected unit, with it's position, simulate accuracy/miss distances
     to draw accuracy contours.
@@ -60,7 +72,7 @@ def accuracy_contour(M, index, acc_penalty=15., boxlim=15):
     X, Y = np.meshgrid(xgrid, ygrid)
     Z = np.sqrt(np.power(X - M["x"][index], 2) + np.power(Y - M["y"][index], 2))
     # normalize
-    n_Z = (1. - (Z / acc_penalty)) * M["acc"][index]
+    n_Z = (1.0 - (Z / acc_penalty)) * M["acc"][index]
     # get range also
 
     fig, ax = plt.subplots()
@@ -71,12 +83,16 @@ def accuracy_contour(M, index, acc_penalty=15., boxlim=15):
     ax.scatter(M["x"][index], M["y"][index], c="red")
     CS = ax.contour(X, Y, n_Z, levels=15)
     # add range circle
-    ax.add_patch(plt.Circle((M["x"][index], M["y"][index]), M["range"][index], color="green", alpha=.3))
+    ax.add_patch(
+        plt.Circle(
+            (M["x"][index], M["y"][index]), M["range"][index], color="green", alpha=0.3
+        )
+    )
     ax.clabel(CS, inline=1, fontsize=8)
     return fig, ax
 
 
-def hit_contour(M, i1, i2, acc_penalty=15., boxlim=10):
+def hit_contour(M, i1, i2, acc_penalty=15.0, boxlim=10):
     """
     Given two units, simulate the contours for hitting each other.
     """
@@ -91,16 +107,20 @@ def hit_contour(M, i1, i2, acc_penalty=15., boxlim=10):
     u1x, u1y, u1z = _contour_grid(M, i1)
     u2x, u2y, u2z = _contour_grid(M, i2)
     # normalize
-    nZu1 = (1. - (u1z / acc_penalty)) * M["acc"][i1] * (1. - M["dodge"][i2])
-    nZu2 = (1. - (u2z / acc_penalty)) * M["acc"][i2] * (1. - M["dodge"][i1])
+    nZu1 = (1.0 - (u1z / acc_penalty)) * M["acc"][i1] * (1.0 - M["dodge"][i2])
+    nZu2 = (1.0 - (u2z / acc_penalty)) * M["acc"][i2] * (1.0 - M["dodge"][i1])
 
     fig, ax = plt.subplots()
     # scatter
     ax.scatter(M["x"][i1], M["y"][i1], c="red", s=50)
     ax.scatter(M["x"][i2], M["y"][i2], c="green", marker="^", s=50)
     # add range circle
-    ax.add_patch(plt.Circle((M["x"][i1], M["y"][i1]), M["range"][i1], color="green", alpha=.3))
-    ax.add_patch(plt.Circle((M["x"][i2], M["y"][i2]), M["range"][i2], color="red", alpha=.3))
+    ax.add_patch(
+        plt.Circle((M["x"][i1], M["y"][i1]), M["range"][i1], color="green", alpha=0.3)
+    )
+    ax.add_patch(
+        plt.Circle((M["x"][i2], M["y"][i2]), M["range"][i2], color="red", alpha=0.3)
+    )
     # contours
     CS1 = ax.contour(u1x, u1y, nZu1, levels=10, cmap="winter")
     CS2 = ax.contour(u2x, u2y, nZu2, levels=10, cmap="summer")

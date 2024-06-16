@@ -5,15 +5,15 @@ Created on Fri Oct  4 15:34:25 2019
 
 @author: gparkes
 """
-
-import matplotlib.pyplot as plt
-from matplotlib import animation
-import numpy as np
 import itertools as it
 import random
 import time
 from copy import deepcopy
 import os
+import matplotlib.pyplot as plt
+from matplotlib import animation
+import numpy as np
+import pandas as pd
 
 __units__ = ["Unit1"]
 __simulations__ = ["basic_simulation%d" % (i + 1) for i in range(4)]
@@ -48,11 +48,11 @@ class Unit1(object):
         self.team_name = db.loc[name, "Allegiance"]
 
         # define position
-        self.pos = np.array([0., 0.])
+        self.pos = np.array([0.0, 0.0])
         # directional derivative from target.
-        self.dd = np.array([0., 0.])
+        self.dd = np.array([0.0, 0.0])
         # distance from target
-        self.dist = 0.
+        self.dist = 0.0
         # define target to aim for
         self.target = None
 
@@ -138,7 +138,7 @@ def basic_simulation3(units, max_step=50):
             if u.hp > 0:
 
                 # wait a second. what if our enemy is dead..?
-                if u.target.hp <= 0.:
+                if u.target.hp <= 0.0:
                     # find a new random enemy.
                     target = find_random_enemy(u, units)
                     if target != -1:
@@ -185,7 +185,7 @@ def basic_simulation4(units, max_step=50):
             if u.hp > 0:
 
                 # wait a second. what if our enemy is dead..?
-                if u.target.hp <= 0.:
+                if u.target.hp <= 0.0:
                     # find a new random enemy.
                     target = find_nearest_enemy(u, units)
                     if target != -1:
@@ -219,8 +219,8 @@ def basic_simulation4(units, max_step=50):
 
 def set_boundary(ax, pos):
     """Sets the boundary on an axis."""
-    xmin, xmax = np.min(pos[:, 0, :]) - 1., np.max(pos[:, 0, :]) + 1.
-    ymin, ymax = np.min(pos[:, 1, :]) - 1., np.max(pos[:, 1, :]) + 1.
+    xmin, xmax = np.min(pos[:, 0, :]) - 1.0, np.max(pos[:, 0, :]) + 1.0
+    ymin, ymax = np.min(pos[:, 1, :]) - 1.0, np.max(pos[:, 1, :]) + 1.0
     # set bounds
     ax.set_xlim(xmin, xmax)
     ax.set_ylim(ymin, ymax)
@@ -243,7 +243,7 @@ def basic_animate1(results, n):
     set_boundary(ax, pos)
 
     # set the object to draw to
-    u_points, = ax.plot([], [], 'x', color="black", alpha=.8, markersize=5.)
+    (u_points,) = ax.plot([], [], "x", color="black", alpha=0.8, markersize=5.0)
 
     fig.tight_layout()
     # close the plot
@@ -259,7 +259,9 @@ def basic_animate1(results, n):
         u_points.set_data(pos[i, 0, :], pos[i, 1, :])
         return u_points
 
-    ani = animation.FuncAnimation(fig, _animate, init_func=_init, interval=100, frames=N_f, blit=False)
+    ani = animation.FuncAnimation(
+        fig, _animate, init_func=_init, interval=100, frames=N_f, blit=False
+    )
     plt.show()
     return ani
 
@@ -285,9 +287,11 @@ def basic_animate2(results, n):
 
     # set the objects to draw to - we set them into lists.
     points_alive = toflat(
-        [ax.plot([], [], 'o', color=cm[a], alpha=.6, markersize=10.) for a in T_uniq])
+        [ax.plot([], [], "o", color=cm[a], alpha=0.6, markersize=10.0) for a in T_uniq]
+    )
     points_dead = toflat(
-        [ax.plot([], [], 'x', color=cm[a], alpha=.4, markersize=5.) for a in T_uniq])
+        [ax.plot([], [], "x", color=cm[a], alpha=0.4, markersize=5.0) for a in T_uniq]
+    )
 
     fig.tight_layout()
     # close the plot
@@ -303,7 +307,7 @@ def basic_animate2(results, n):
                 points_alive[j].set_data(pos[0, 0, T_Alive], pos[0, 1, T_Alive])
             if len(T_Dead) > 0:
                 points_dead[j].set_data(pos[0, 0, T_Dead], pos[0, 1, T_Dead])
-        return ((*points_alive, *points_dead))
+        return (*points_alive, *points_dead)
 
     # define animate
     def _animate(i):
@@ -316,9 +320,11 @@ def basic_animate2(results, n):
             if len(T_Dead) > 0:
                 points_dead[j].set_data(pos[i, 0, T_Dead], pos[i, 1, T_Dead])
 
-        return ((*points_alive, *points_dead))
+        return (*points_alive, *points_dead)
 
-    ani = animation.FuncAnimation(fig, _animate, init_func=_init, interval=100, frames=N_f, blit=False)
+    ani = animation.FuncAnimation(
+        fig, _animate, init_func=_init, interval=100, frames=N_f, blit=False
+    )
     plt.show()
     return ani
 
@@ -351,14 +357,22 @@ def basic_animate3(results, n):
     for j, a in enumerate(T_uniq):
         T_Alive0 = np.argwhere((hp[:, 0] > 0) & (T[:, 0] == a)).flatten()
 
-        alive = ax.quiver(pos[0, 0, T_Alive0], pos[0, 1, T_Alive0],
-                          dpos[0, 0, T_Alive0], dpos[0, 1, T_Alive0],
-                          color=cm[a], alpha=.5, scale=30,
-                          width=0.015, pivot="mid")
+        alive = ax.quiver(
+            pos[0, 0, T_Alive0],
+            pos[0, 1, T_Alive0],
+            dpos[0, 0, T_Alive0],
+            dpos[0, 1, T_Alive0],
+            color=cm[a],
+            alpha=0.5,
+            scale=30,
+            width=0.015,
+            pivot="mid",
+        )
         arrow_alive.append(alive)
 
     points_dead = toflat(
-        [ax.plot([], [], 'x', color=cm[a], alpha=.4, markersize=5.) for a in T_uniq])
+        [ax.plot([], [], "x", color=cm[a], alpha=0.4, markersize=5.0) for a in T_uniq]
+    )
 
     # figure things
     fig.tight_layout()
@@ -375,7 +389,7 @@ def basic_animate3(results, n):
                 arrow_alive[_j].set_UVC(dpos[0, 0, T_Alive], dpos[0, 1, T_Alive])
             if len(T_Dead) > 0:
                 points_dead[_j].set_data(pos[0, 0, T_Dead], pos[0, 1, T_Dead])
-        return ((*arrow_alive, *points_dead))
+        return (*arrow_alive, *points_dead)
 
     # define animate
     def _animate(i):
@@ -392,9 +406,11 @@ def basic_animate3(results, n):
             if len(T_Dead) > 0:
                 points_dead[_j].set_data(pos[i, 0, T_Dead], pos[i, 1, T_Dead])
 
-        return ((*arrow_alive, *points_dead))
+        return (*arrow_alive, *points_dead)
 
-    ani = animation.FuncAnimation(fig, _animate, init_func=_init, interval=100, frames=N_f, blit=False)
+    ani = animation.FuncAnimation(
+        fig, _animate, init_func=_init, interval=100, frames=N_f, blit=False
+    )
     plt.show()
     return ani
 
@@ -404,22 +420,42 @@ def basic_animate3(results, n):
 
 def extract_pos(results, n):
     """Extracting positions from results array."""
-    return np.stack(([np.array([results[i][j].pos for i in range(len(results))]) for j in range(n)]), axis=2)
+    return np.stack(
+        (
+            [
+                np.array([results[i][j].pos for i in range(len(results))])
+                for j in range(n)
+            ]
+        ),
+        axis=2,
+    )
 
 
 def extract_dpos(results, n):
     """Extracting change in positions from results array."""
-    return np.stack(([np.array([results[i][j].dd for i in range(len(results))]) for j in range(n)]), axis=2)
+    return np.stack(
+        ([np.array([results[i][j].dd for i in range(len(results))]) for j in range(n)]),
+        axis=2,
+    )
 
 
 def extract_hp(results, n):
     """Extracting HP from results array."""
-    return np.vstack(([np.array([results[i][j].hp for i in range(len(results))]) for j in range(n)]))
+    return np.vstack(
+        ([np.array([results[i][j].hp for i in range(len(results))]) for j in range(n)])
+    )
 
 
 def extract_team(results, n):
     """Extracting team number from results array."""
-    return np.vstack(([np.array([results[i][j].team for i in range(len(results))]) for j in range(n)]))
+    return np.vstack(
+        (
+            [
+                np.array([results[i][j].team for i in range(len(results))])
+                for j in range(n)
+            ]
+        )
+    )
 
 
 """########################## MATH FUNCTIONS ##############################################"""
@@ -442,7 +478,7 @@ def deriv_norm(u_i, u_j):
 
 def dudt(u_i, u_j, s_i):
     """Calculates the change between two vectors across time."""
-    return s_i * 1. * 1. * deriv_norm(u_i, u_j)
+    return s_i * 1.0 * 1.0 * deriv_norm(u_i, u_j)
 
 
 """####################### AI FUNCTION #######################################"""
@@ -474,16 +510,22 @@ def find_nearest_enemy(u, units):
 
 
 def check_columns(df, list_of_columns):
-    for l in list_of_columns:
-        if l not in df.columns:
-            raise ValueError("column '{}' not found in dataframe.".format(l))
+    for item in list_of_columns:
+        if item not in df.columns:
+            raise ValueError("column '{}' not found in dataframe.".format(item))
 
 
 def import_db_file(fpath):
     """Imports our dataset of information, given a file path."""
     accepted_db_columns = (
-        "Name", "Allegiance", "HP", "Damage", "Accuracy",
-        "Miss", "Movement Speed", "Range"
+        "Name",
+        "Allegiance",
+        "HP",
+        "Damage",
+        "Accuracy",
+        "Miss",
+        "Movement Speed",
+        "Range",
     )
 
     if not os.path.isfile(fpath):
@@ -547,7 +589,9 @@ def time_n(method, r=5, *args, **kws):
     """
     r for repeats
     """
-    T = np.zeros(r + 1, )
+    T = np.zeros(
+        r + 1,
+    )
     for i in range(r + 1):
         ts = time.time()
         _ = method(*args, **kws)
@@ -564,5 +608,14 @@ def toflat(L):
 
 
 def colorwheel():
-    return ("red", "blue", "green", "orange", "purple", "brown", "black",
-            "cyan", "yellow")
+    return (
+        "red",
+        "blue",
+        "green",
+        "orange",
+        "purple",
+        "brown",
+        "black",
+        "cyan",
+        "yellow",
+    )
