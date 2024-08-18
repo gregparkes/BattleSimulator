@@ -31,7 +31,7 @@ passed to the functions.
         -1 if not valid target chosen.
 
 """
-from typing import Callable, Optional
+from typing import Optional, List
 
 import numpy as np
 from numpy.typing import NDArray
@@ -40,34 +40,14 @@ from numba import jit
 from battlesim import _mathutils
 
 
-def get_function_names() -> list[str]:
+def get_function_names() -> List[str]:
     """Returns the function names."""
     return ["random", "nearest", "close_weak"]
 
 
-def get_functions() -> list[Callable]:
-    """Returns the function objects."""
-    return [random, nearest, close_weak]
-
-
-def get_map_functions() -> dict[str, Callable]:
-    """Returns the function objects."""
-    return dict(zip(get_function_names(), get_functions()))
-
-
-def get_global_function_names() -> list[str]:
+def get_global_function_names() -> List[str]:
     """Gets global function names."""
     return ["global_" + n for n in get_function_names()]
-
-
-def get_global_functions() -> list[Callable]:
-    """Returns the function objects."""
-    return [global_random, global_nearest, global_close_weak]
-
-
-def get_global_map_functions() -> dict[str, Callable]:
-    """Returns the function objects."""
-    return dict(zip(get_global_function_names(), get_global_functions()))
 
 
 __all__ = get_function_names() + get_global_function_names()

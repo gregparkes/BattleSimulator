@@ -8,9 +8,11 @@ Created on Wed Oct  2 16:45:50 2019
 This file determines different background 'terrains' to have for any given map.
 This can be fixed size or infinite if it follows some mathematical function.
 """
-from typing import Optional, Tuple
+from typing import Optional, Tuple, Callable
 
 import numpy as np
+import matplotlib.pyplot as plt
+from numpy.typing import NDArray
 from matplotlib.pyplot import subplots
 
 from battlesim import _utils
@@ -18,10 +20,10 @@ from battlesim._mathutils import minmax
 
 from ._noise import create_perlin_map
 
+TUPLE4 = Tuple[float, float, float, float]
 
-def get_tile_size(
-    dim: Tuple[float, float, float, float], res: float
-) -> Tuple[int, int]:
+
+def get_tile_size(dim: TUPLE4, res: float) -> Tuple[int, int]:
     """Returns the tile size of the resolution."""
     return int(np.abs(dim[0] - dim[1]) // res), int(np.abs(dim[2] - dim[3]) // res)
 
@@ -43,7 +45,7 @@ class Terrain:
 
     def __init__(
         self,
-        dim: Tuple[float, float, float, float] = (0.0, 10.0, 0.0, 10.0),
+        dim: TUPLE4 = (0.0, 10.0, 0.0, 10.0),
         res: float = 0.1,
         form: Optional[str] = "contour",
         dtype: Optional[str] = "perlin",
@@ -59,22 +61,20 @@ class Terrain:
             The resolution of the map. Higher resolutions are slower but more accurate.
         form : str
             Determines what type of terra to generate. Choose from ['grid', 'contour']
-                -grid applies a function z = f(x, y) or random and discretizes this into square boxes.
-                -contour applies a function z = f(x, y) or random and plots filled-contours of the background.
-                -None defines a flat grid with no height penalties.
+                -grid applies function z = f(x, y) or random and discretizes this into square boxes.
+                -contour applies function z = f(x, y) or random and plots filled-contours of the background.
+                -None defines flat grid with no height penalties.
         dtype : str
             Defines which function to use to generate noise map. Only `perlin` is currently implemented.
         """
-        self.form_ = form
+        self._form = form
         self.bounds_ = dim
         self.res_ = res
         self._Z = None
         self.dtype = dtype
 
-    """ '################################## ATTRIBUTES ########################################### """
-
     @property
-    def form_(self):
+    def form_(self) -> Optional[str]:
         """Determines the appearance of the terra. Either grid or contour."""
         return self._form
 
@@ -85,12 +85,12 @@ class Terrain:
         self._form = f
 
     @property
-    def bounds_(self):
+    def bounds_(self) -> TUPLE4:
         """Determines the dimensions by which to calculate Terrain."""
         return self._bounds
 
     @bounds_.setter
-    def bounds_(self, dim: Tuple[float, float, float, float]):
+    def bounds_(self, dim: TUPLE4):
         if not isinstance(dim, (list, tuple)):
             raise TypeError("'dim' must be of type [list, tuple]")
         if len(dim) != 4:
@@ -103,7 +103,7 @@ class Terrain:
         self._bounds = dim
 
     @property
-    def res_(self):
+    def res_(self) -> float:
         """The resolution of the Terrain."""
         return self._res
 
@@ -116,32 +116,39 @@ class Terrain:
         self._res = r
 
     @property
-    def Z_(self):
+    def Z_(self) -> NDArray[np.float_]:
         """The array defining height."""
         return self._Z
 
-    """############################## HIDDEN FUNCTIONS ################################################"""
-
-    def _m_size(self):
+    def _m_size(self) -> tuple[int, int]:
         x0, x1, y0, y1 = self.bounds_
         return (int((x1 - x0) / self.res_), int((y1 - y0) / self.res_))
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         return "Terrain(init={}, dtype='{}', dims={}, resolution={:0.3f})".format(
             self.Z_ is not None, self.dtype, self.bounds_, self.res_
         )
 
-    """##################################### FUNCTIONS ##################################################"""
+    def get_grid(self) -> NDArray[np.float_]:
+        """Returns the grid as an mgrid.
 
-    def get_grid(self):
+        Returns
+        -------
+        x : ndarray[float]
+            Meshgrid of terrain
+        """
         x0, x1, y0, y1 = self.bounds_
-        """Returns the grid as an mgrid."""
         x, y = np.linspace(x0, x1, self.Z_.shape[0]), np.linspace(
             y0, y1, self.Z_.shape[1]
         )
         return np.meshgrid(x, y)
 
-    def generate(self, f=None):
+    def generate(
+        self,
+        f: Optional[
+            Callable[[NDArray[np.float_], NDArray[np.float_]], NDArray[np.float_]]
+        ] = None,
+    ):
         """
         Generates the terra using a function.
 
@@ -166,7 +173,7 @@ class Terrain:
             raise TypeError(f"'f' must be a function or None, not {f}")
         return self
 
-    def plot(self, ax=None, **kwargs):
+    def plot(self, ax: Optional[plt.Axes] = None, **kwargs):
         """Plots the terra as a contour to visualize."""
         # given an axes, plot the terra using the parameters given.
         if self.Z_ is None:

@@ -6,7 +6,7 @@ Created on Tue Oct  8 11:07:18 2019
 @author: gparkes
 """
 import math
-from typing import Callable
+from typing import List
 import numpy as np
 from numpy.typing import NDArray
 
@@ -16,19 +16,9 @@ from . import _damage, _hit, _move
 from ._target import nearest
 
 
-def get_function_names() -> list[str]:
+def get_function_names() -> List[str]:
     """Returns the function names."""
     return ["aggressive", "hit_and_run"]
-
-
-def get_functions() -> list[Callable]:
-    """Returns the functions themselves."""
-    return [aggressive, hit_and_run]
-
-
-def get_map_functions() -> dict[str, Callable]:
-    """Maps the function names to the functions."""
-    return dict(zip(get_function_names(), get_functions()))
 
 
 __all__ = get_function_names()
@@ -167,4 +157,4 @@ def defensive(M, luck, dists, dx, dy, enemies, allies, Z, i):
     a nearby enemy.
     """
     # use target index to see if we can reach the hill in-time.
-    return NotImplemented
+    raise NotImplementedError()

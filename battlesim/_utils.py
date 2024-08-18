@@ -5,7 +5,7 @@ Created on Fri Feb 22 14:27:46 2019
 
 @author: gparkes
 """
-from typing import Iterable, Any
+from typing import Iterable, Union, Any, List
 import itertools as it
 import importlib
 import os
@@ -65,7 +65,7 @@ def check_groups_in_db(groups, db: pd.DataFrame):
     return True
 
 
-def slice_loop(loopable: Iterable[Any], n: int) -> list[Any]:
+def slice_loop(loopable: Iterable[Any], n: int) -> List[Any]:
     """Returns n elements from an infinite loop of loopable."""
     return list(it.islice(it.cycle(loopable), 0, n))
 
@@ -112,7 +112,7 @@ def preprocess_unit_file(df: pd.DataFrame) -> None:
     df["allegiance_int"] = pd.factorize(df["Allegiance"])[0]
 
 
-def import_and_check_unit_file(fpath: str | Path) -> pd.DataFrame:
+def import_and_check_unit_file(fpath: Union[str, Path]) -> pd.DataFrame:
     """
     Checks the quality of the unit-score datafile.
 

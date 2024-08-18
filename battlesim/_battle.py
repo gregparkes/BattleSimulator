@@ -22,6 +22,8 @@ from .simulation import _target
 from .simulation import simulate_battle as sim_battle
 from . import _utils
 
+TUPLE4 = Tuple[float, float, float, float]
+
 
 class Battle:
     """
@@ -33,12 +35,10 @@ class Battle:
     flow.
     """
 
-    """###################### INIT FUNCTION #####################################"""
-
     def __init__(
         self,
         db: Union[str, Dict, pd.DataFrame] = default_db(),
-        bounds: Tuple[float, float, float, float] = (0.0, 10.0, 0.0, 10.0),
+        bounds: TUPLE4 = (0.0, 10.0, 0.0, 10.0),
         use_tqdm: bool = True,
     ):
         """
@@ -69,8 +69,6 @@ class Battle:
         # design a list of composites
         self._comps = []
         self._decision_map = {"aggressive": 0, "hit_and_run": 1}
-
-    """####################### HIDDEN FUNCTIONS ##############################"""
 
     @staticmethod
     def _generate_M(n: int):
@@ -127,12 +125,12 @@ class Battle:
             Q = func(self.sim_, None, labels, cols)
         return Q
 
-    def _get_bounds_from_M(self):
+    def _get_bounds_from_M(self) -> TUPLE4:
         xmin, xmax = self.M_["x"].min(), self.M_["x"].max()
         ymin, ymax = self.M_["y"].min(), self.M_["y"].max()
         return np.floor(xmin), np.ceil(xmax), np.floor(ymin), np.ceil(ymax)
 
-    def _check_bounds_to_M(self, bounds: Tuple[float, float, float, float]):
+    def _check_bounds_to_M(self, bounds: TUPLE4) -> None:
         xmin, xmax, ymin, ymax = self._get_bounds_from_M()
         if bounds[0] > xmin:
             raise ValueError(
@@ -151,7 +149,7 @@ class Battle:
                 "ymax bounds value: {} < unit bound {}".format(bounds[3], ymax)
             )
 
-    def _presim(self):
+    def _presim(self) -> None:
         self._M = Battle._generate_M(sum(self._unit_n))
         # check that groups exist in army_set
         _seg_start, _seg_end = self._segments
@@ -185,16 +183,14 @@ class Battle:
             # assign targets
             self.M_["target"][start:end] = _target.global_nearest(self.M_, group)
 
-    """---------------------- PUBLIC ATTRIBUTES AND ATTR METHODS ----------------------------------------"""
-
     @property
-    def composition_(self):
+    def composition_(self) -> List[Composite]:
         """Determines the composition of the Battle."""
         self._is_instantiated()
         return self._comps
 
     @property
-    def n_allegiance_(self):
+    def n_allegiance_(self) -> pd.Series:
         """Determines the number of teams present in the fight."""
         self._is_instantiated()
         d = {
@@ -204,13 +200,13 @@ class Battle:
         return pd.DataFrame(d).groupby("allegiance")["n"].sum()
 
     @property
-    def bounds_(self) -> Tuple[float, float, float, float]:
+    def bounds_(self) -> TUPLE4:
         """Determine the bounds of the fight using the Terrain."""
         self._is_instantiated()
         return self.T_.bounds_
 
     @bounds_.setter
-    def bounds_(self, b: Tuple[float, float, float, float]):
+    def bounds_(self, b: TUPLE4):
         if self.M_ is None:
             warnings.warn(
                 "bounds {} set before units are initialised - some may be out-of-bounds".format(
@@ -239,7 +235,7 @@ class Battle:
         return self._db
 
     @db_.setter
-    def db_(self, db_n):
+    def db_(self, db_n: Union[str, Dict, pd.DataFrame]):
         if isinstance(db_n, str):
             self._db = _utils.import_and_check_unit_file(db_n)
         elif isinstance(db_n, dict):
@@ -284,8 +280,6 @@ class Battle:
             .squeeze()
         )
 
-    """################### HIDDEN ATTRIBUTE #################################"""
-
     @property
     def _segments(self):
         _seg_end = np.cumsum(self._unit_n)
@@ -298,8 +292,6 @@ class Battle:
         return np.asarray(
             [self.db_.loc[u, "allegiance_int"] for u in self._unit_roster]
         )
-
-    """--------------------------------- PUBLIC FUNCTIONS ------------------------------------------------"""
 
     def create_army(self, army_set: List[Composite]):
         """
@@ -362,7 +354,7 @@ class Battle:
         else:
             raise ValueError("'t' must be [grid, contour, None]")
 
-    def set_bounds(self, bounds: Tuple[float, float, float, float]):
+    def set_bounds(self, bounds: TUPLE4):
         """
         Sets the boundaries of the Battle. If not initialised, this is OK but may
         produce errors down-the-line.
@@ -378,8 +370,6 @@ class Battle:
         """
         self.bounds_ = bounds
         return self
-
-    """ ----------------------------- SIMULATION ----------------------------- """
 
     def simulate(self, verbose: int = 0):
         """
@@ -445,8 +435,6 @@ class Battle:
                 team_counts = sim_battle(np.copy(self.M_), self.T_, ret_frames=False)
                 runs[i, :] = team_counts
             return pd.DataFrame(runs, columns=self.allegiances_.values)
-
-    """ ------------ CONVENIENCE PLOTTING FUNCTIONS ---------------------- """
 
     def sim_jupyter(self, func: Callable = quiver_fight, create_html: bool = False):
         """
@@ -514,8 +502,6 @@ class Battle:
         # save
         Q.save(filename, writer=writer)
         return
-
-    """ ---------------------- MISC --------------------------------------- """
 
     def __repr__(self) -> str:
         if self.M_ is None:

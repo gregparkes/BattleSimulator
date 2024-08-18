@@ -12,7 +12,9 @@ from numba import jit
 
 
 @jit
-def smooth_noise(noise, x, y, noisewidth=100, noiseheight=100):
+def smooth_noise(
+    noise, x: int, y: int, noisewidth: int = 100, noiseheight: int = 100
+) -> float:
     """Determines some smooth noise at point [x, y]"""
     # get fractional part
     fractX = x - int(x)
@@ -33,7 +35,7 @@ def smooth_noise(noise, x, y, noisewidth=100, noiseheight=100):
 
 
 @jit
-def turbulence(noise, x, y, size, dim_x, dim_y):
+def turbulence(noise, x: int, y: int, size: int, dim_x: int, dim_y: int) -> float:
     """Adds turbulence at point [x, y]"""
     val = 0.0
     init_size = size
@@ -44,7 +46,7 @@ def turbulence(noise, x, y, size, dim_x, dim_y):
 
 
 @jit
-def create_perlin_map(dim_x, dim_y, scale=30):
+def create_perlin_map(dim_x: int, dim_y: int, scale: int = 30):
     """Defines a perlin map with turbulence (upgrade on gauss map)
 
     It's recommended that scale is an integer close to 30% of one of the map dimensions.
