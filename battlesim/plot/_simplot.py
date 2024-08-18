@@ -7,6 +7,7 @@ Created on Fri Feb 22 14:30:45 2019
 """
 import itertools as it
 from functools import reduce
+from typing import Optional
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -14,13 +15,17 @@ from matplotlib import animation, colors
 from matplotlib.lines import Line2D
 
 from battlesim._utils import slice_loop
+from battlesim.terra._terrain import Terrain
 
 # all functions to import
 __all__ = ["quiver_fight"]
 
 
 def quiver_fight(
-    frames: np.ndarray, terrain=None, allegiance_label={}, allegiance_color={}
+    frames: np.ndarray,
+    terrain: Optional[Terrain] = None,
+    allegiance_label={},
+    allegiance_color={},
 ):
     """
     Generates an animated quiver plot with units moving around the arena
@@ -54,7 +59,7 @@ def quiver_fight(
     plt.rcParams["animation.html"] = "jshtml"
     # plt.rcParams['animation.writer'] = 'pillow'
     # dataframe
-    N_frames = frames.shape[0]
+    n_frames = frames.shape[0]
     # create plot
     fig = plt.figure(figsize=(8, 6))
     ax = fig.add_subplot(111)
@@ -87,8 +92,8 @@ def quiver_fight(
             )
         )
     # unique units.
-    Uunits = np.unique(frames["utype"])
-    combs = list(it.product(allegiances, Uunits))
+    unique_units = np.unique(frames["utype"])
+    combs = list(it.product(allegiances, unique_units))
 
     """
     Create two groups for each allegiance:
@@ -189,5 +194,5 @@ def quiver_fight(
         return (*qalive, *dead)
 
     return animation.FuncAnimation(
-        fig, _animate, init_func=_init, interval=100, frames=N_frames, blit=True
+        fig, _animate, init_func=_init, interval=100, frames=n_frames, blit=True
     )

@@ -19,7 +19,9 @@ from battlesim._mathutils import minmax
 from ._noise import create_perlin_map
 
 
-def get_tile_size(dim: Tuple[float, float, float, float], res: float) -> Tuple[int, int]:
+def get_tile_size(
+    dim: Tuple[float, float, float, float], res: float
+) -> Tuple[int, int]:
     """Returns the tile size of the resolution."""
     return int(np.abs(dim[0] - dim[1]) // res), int(np.abs(dim[2] - dim[3]) // res)
 

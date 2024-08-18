@@ -5,9 +5,11 @@ Created on Fri Feb 22 14:27:46 2019
 
 @author: gparkes
 """
+from typing import Iterable, Any
 import itertools as it
+import importlib
 import os
-
+from pathlib import Path
 import pandas as pd
 
 
@@ -56,23 +58,21 @@ def is_ntuple(L, *types):
         raise TypeError("'L' must be of type [list, tuple]")
 
 
-def check_groups_in_db(groups, db):
+def check_groups_in_db(groups, db: pd.DataFrame):
     for group_name, count in groups:
         if group_name not in db.index:
-            raise ValueError(
-                "group '{}' not found in {}".format(group_name, db.index.tolist())
-            )
+            raise ValueError(f"group '{group_name}' not found in {db.index.tolist()}")
     return True
 
 
-def slice_loop(loopable, n):
+def slice_loop(loopable: Iterable[Any], n: int) -> list[Any]:
     """Returns n elements from an infinite loop of loopable."""
     return list(it.islice(it.cycle(loopable), 0, n))
 
 
-def io_table_columns():
-    """Accepted column names for a unit file."""
-    return (
+def check_unit_file(df: pd.DataFrame) -> None:
+    """Works inplace; no return"""
+    table_cols = (
         "Name",
         "Allegiance",
         "HP",
@@ -84,10 +84,7 @@ def io_table_columns():
         "Range",
     )
 
-
-def io_table_descriptions():
-    """Descriptions corresponding to each accepted column name for a unit file."""
-    return (
+    descriptions = (
         "The name of the unit. Format string",
         "The team/allegiance of the unit. Format string, must be hashable",
         "HP: the health of the unit; an integer or float, no limit. Must be > 0",
@@ -99,20 +96,15 @@ def io_table_descriptions():
         "Range: the range of the unit; integer or float, Must be > 0",
     )
 
-
-def check_unit_file(df):
-    """Works inplace; no return"""
-    mappp = dict(zip(io_table_columns(), io_table_descriptions()))
-    for m in io_table_columns():
+    mappp = dict(zip(table_cols, descriptions))
+    for m in table_cols:
         if m not in df.columns:
             raise IOError(
-                "column '{}' not found in file and must be present. Description:::'{}'".format(
-                    m, mappp[m]
-                )
+                f"column '{m}' not found in file and must be present. Description:'{mappp[m]}'"
             )
 
 
-def preprocess_unit_file(df):
+def preprocess_unit_file(df: pd.DataFrame) -> None:
     """Works inplace; no return"""
     # assign index
     df.set_index("Name", inplace=True)
@@ -120,7 +112,7 @@ def preprocess_unit_file(df):
     df["allegiance_int"] = pd.factorize(df["Allegiance"])[0]
 
 
-def import_and_check_unit_file(fpath):
+def import_and_check_unit_file(fpath: str | Path) -> pd.DataFrame:
     """
     Checks the quality of the unit-score datafile.
 
@@ -128,7 +120,7 @@ def import_and_check_unit_file(fpath):
     """
     # try to import
     if not os.path.isfile(fpath):
-        raise IOError("fpath: {} does not exist".format(fpath))
+        raise IOError(f"fpath: {fpath} does not exist")
     # attempt to read in
     df = pd.read_csv(fpath)
     # check
@@ -139,15 +131,14 @@ def import_and_check_unit_file(fpath):
     return df
 
 
-def is_tqdm_installed(raise_error: bool = False):
+def is_tqdm_installed(raise_error: bool = False) -> bool:
     """Determines whether tqdm is installed."""
     try:
-        from tqdm import tqdm  # noqa
-
+        importlib.import_module("tqdm")
         is_installed = True
     except ModuleNotFoundError:  # pragma: no cover
         is_installed = False
     # Raise error (if needed) :
     if raise_error and not is_installed:  # pragma: no cover
-        raise ModuleNotFoundError("tqdm not installed. Use `pip " "install tqdm`.")
+        raise ModuleNotFoundError("tqdm not installed. Use `pip install tqdm`.")
     return is_installed
