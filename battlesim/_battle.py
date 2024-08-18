@@ -424,7 +424,8 @@ class Battle:
                 )
                 return self.sim_
 
-            runs = np.zeros((k, 2), dtype=np.int64)
+            # now handles J teams (thanks kmcnayr @ https://github.com/gregparkes/BattleSimulator/issues/4)
+            runs = np.zeros((k, np.unique(self._teams).shape[0]), dtype=np.int64)
             # pre-simulate fields.
             self._presim()
             # generate new terra
