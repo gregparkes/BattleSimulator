@@ -57,7 +57,7 @@ If you are unfamiliar with the Jupyter project see `here <https://jupyter.org/>`
 
 - jupyter (1.0.0)
 
-From PyPI
+From PyPI (Legacy)
 ~~~~~~~~~
 
 If you have working versions of the dependencies, similarly install

@@ -8,6 +8,7 @@ from .distrib import Composite, Sampling  # noqa: F401
 from .terra import Terrain  # noqa: F401
 
 __version__ = "0.3.7"
+__name__ = "battlesim"  # noqa: W0622
 __doc__ = """
 battlesim - Modelling and animating simulated battles between units in Python.
 ==============================================================================

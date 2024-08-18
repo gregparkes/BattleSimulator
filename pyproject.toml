@@ -1,0 +1,53 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "battlesim"
+description = "Modelling and animating simulated battles between units in Python."
+dynamic = ["version"]
+requires-python = ">=3.8"
+authors = [
+    {name = "Greg Parkes"}
+]
+readme = {file = "README.rst", content-type = "text/x-rst"}
+license = { file = "LICENSE.txt" }
+dependencies = [
+    "numpy>=1.11.0",
+    "pandas>=0.25.1",
+    "matplotlib>=3.1.1",
+    "numba>=0.45"
+]
+keywords = ["simulation", "battle", "tabs"]
+classifiers=[
+    "Natural Language :: English",
+    "Programming Language :: Python :: 3.8",
+    "Intended Audience :: Science/Research",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: GNU General Public License v3 (GPLv3)",
+    "Framework :: IPython",
+    "Framework :: Jupyter",
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Science/Research",
+    "Topic :: Scientific/Engineering",
+]
+
+[project.optional-dependencies]
+all = ["tqdm", "pytest"]
+
+[project.urls]
+Homepage = "https://github.com/gregparkes/BattleSimulator"
+Changelog = "https://github.com/gregparkes/BattleSimulator/blob/master/CHANGELOG.md"
+
+#[tool.pytest.ini_options]
+#addopts = "--cov --cov-report html cov-report term-missing"
+
+[tool.pylint]
+max-line-length = 120
+disable = [
+    "C0103", # invalid name
+    "C0209", # consider f-string
+]
+
+[tool.black]
+exclude = "battlesim/__*.py"
