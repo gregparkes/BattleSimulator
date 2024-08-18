@@ -1,19 +1,27 @@
 """ Various utilities for fast computation of things within the simulation. """
 
 import numpy as np
-from numba import njit, prange
+from numpy.typing import NDArray
+from numba import jit
 
 
-@njit
-def boundary_check(bxmin, bxmax, bymin, bymax, X, Y):
+@jit
+def boundary_check(
+    bxmin: float,
+    bxmax: float,
+    bymin: float,
+    bymax: float,
+    x_pos: NDArray[np.float_],
+    y_pos: NDArray[np.float_],
+) -> None:
     """performs boundary checks on our locations movement inplace"""
-    X[X < bxmin] = bxmin
-    X[X > bxmax] = bxmax
-    Y[Y < bymin] = bymin
-    Y[Y > bymax] = bymax
+    x_pos[x_pos < bxmin] = bxmin
+    x_pos[x_pos > bxmax] = bxmax
+    y_pos[y_pos < bymin] = bymin
+    y_pos[y_pos > bymax] = bymax
 
 
-@njit
+@jit
 def boundary_check2(bounds, X, Y):
     """performs boundary checks on our locations movement inplace"""
     X[X < bounds[0]] = bounds[0]
@@ -22,68 +30,77 @@ def boundary_check2(bounds, X, Y):
     Y[Y > bounds[3]] = bounds[3]
 
 
-@njit
-def euclidean_distance(dX, dY):
+@jit
+def euclidean_distance(
+    delta_x: NDArray[np.float_], delta_y: NDArray[np.float_]
+) -> NDArray[np.float_]:
     """Given dX, dY vectors, compute distances D vector from M[x] and M[y]"""
-    D = np.empty_like(dX)
-    for i in prange(D.shape[0]):
-        D[i] = np.sqrt(dX[i] * dX[i] + dY[i] * dY[i])
-    return D
+    distance = np.empty_like(delta_x, dtype=np.float64)
+    size = distance.shape[0]
+    for i in range(size):
+        distance[i] = np.sqrt(delta_x[i] * delta_x[i] + delta_y[i] * delta_y[i])
+    return distance
 
 
-@njit
-def sq_euclidean_distance(dX, dY):
+@jit
+def sq_euclidean_distance(
+    delta_x: NDArray[np.float_], delta_y: NDArray[np.float_]
+) -> NDArray[np.float_]:
     """squared euclidean distance, cheaper."""
-    D = np.empty_like(dX)
-    for i in prange(D.shape[0]):
-        D[i] = dX[i] * dX[i] + dY[i] * dY[i]
-    return D
+    distance = np.empty_like(delta_x)
+    size = distance.shape[0]
+    for i in range(size):
+        distance[i] = delta_x[i] * delta_x[i] + delta_y[i] * delta_y[i]
+    return distance
 
 
-@njit
-def sq_euclidean_distance2(X, Y, i, e_indices):
+@jit
+def sq_euclidean_distance2(
+    x_pos: NDArray[np.float_],
+    y_pos: NDArray[np.float_],
+    i: int,
+    e_indices: NDArray[np.uint],
+) -> NDArray[np.float_]:
     """squared euclidean distance between X[i] and Y[i] and X[indices]/Y[indices]"""
-    return sq_euclidean_distance(X[i] - X[e_indices], Y[i] - Y[e_indices])
+    return sq_euclidean_distance(
+        x_pos[i] - x_pos[e_indices], y_pos[i] - y_pos[e_indices]
+    )
 
 
-@njit
-def sq_distance_matrix(X, Y):
+@jit
+def sq_distance_matrix(
+    x_pos: NDArray[np.float_], y_pos: NDArray[np.float_]
+) -> NDArray[np.float_]:
     """Where X, Y are vectors of (n,) length."""
-    D = np.zeros((X.shape[0], Y.shape[0]), dtype=np.float64)
+    distance = np.zeros((x_pos.shape[0], y_pos.shape[0]), dtype=np.float64)
     # inplace op
-    for i in prange(D.shape[0]):
-        for j in range(i + 1, Y.shape[0]):
-            dX = X[i] - X[j]
-            dY = Y[i] - Y[j]
-            sq_dist = dX * dX + dY * dY
+    for i in range(distance.shape[0]):
+        for j in range(i + 1, y_pos.shape[0]):
+            delta_x = x_pos[i] - x_pos[j]
+            delta_y = y_pos[i] - y_pos[j]
+            sq_dist = delta_x * delta_x + delta_y * delta_y
             # set transpose also.
-            D[i, j] = D[j, i] = sq_dist
-    return D
+            distance[i, j] = distance[j, i] = sq_dist
+    return distance
 
 
-@njit
-def matrix_argmin(X):
+@jit
+def matrix_argmin(x_pos: NDArray[np.float_]) -> NDArray[np.int64]:
     """Calculates argmin along axis=1 dim."""
-    A = np.empty(X.shape[0], dtype=np.int64)
-    for i in prange(X.shape[0]):
-        A[i] = np.argmin(X[i, :])
-    return A
+    mins = np.empty(x_pos.shape[0], dtype=np.int64)
+    for i in range(x_pos.shape[0]):
+        mins[i] = np.argmin(x_pos[i, :])
+    return mins
 
 
-@njit
-def minmax(X):
+@jit
+def minmax(mat: NDArray[np.float_]) -> NDArray[np.float_]:
     """Scales X into the [0, 1] range."""
-    xm = np.min(X)
-    return (X - xm) / (np.max(X) - xm)
+    xm = np.min(mat)
+    return (mat - xm) / (np.max(mat) - xm)
 
 
-@njit
-def no_mean(X):
+@jit
+def no_mean(mat: NDArray[np.float_]) -> NDArray[np.float_]:
     """Remove the mean from every value in X."""
-    return X - np.mean(X)
-
-
-@njit
-def lerp(a1, a2, b1, b2, t):
-    """Linearly interpolates t from [a1, a2] domain into [b1, b2] domain, truncating to int."""
-    return a2 + (t - a1) * ((b2 - a2) / (b1 - a1))
+    return mat - np.mean(mat)

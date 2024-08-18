@@ -9,7 +9,8 @@ This file is concerned with movement functions associated with each army group.
 
 There is the default 'move' and fancier options such as A*.
 """
-
+import numpy as np
+from numpy.typing import NDArray
 from numba import jit
 
 __all__ = ["to_enemy"]
@@ -24,8 +25,15 @@ Parameters
 """
 
 
-@jit(nopython=True)
-def to_enemy(M, dx, dy, dist, z_i, i):
+@jit
+def to_enemy(
+    M,
+    delta_x: NDArray[np.float_],
+    delta_y: NDArray[np.float_],
+    dist: NDArray[np.float_],
+    z_i: NDArray[np.float_],
+    i: int,
+) -> None:
     """
     Updates M[x,y] towards the target.
 
@@ -35,16 +43,23 @@ def to_enemy(M, dx, dy, dist, z_i, i):
         s_i * (dd_i / m_ij) * (1 - (Z_i / 2))
     """
     # modify dist to prevent it being zero
-    D = dist[i] + 1e-12
+    dist_i = dist[i] + 1e-12
     # cache the terra + speed influences.
     terrain_tick = (1.0 - (z_i / 2.0)) * M["speed"][i]
     # compute normed directional derivative and update.
-    M["x"][i] += (dx[i] / D) * terrain_tick
-    M["y"][i] += (dy[i] / D) * terrain_tick
+    M["x"][i] += (delta_x[i] / dist_i) * terrain_tick
+    M["y"][i] += (delta_y[i] / dist_i) * terrain_tick
 
 
-@jit(nopython=True)
-def from_enemy(M, dx, dy, dist, z_i, i):
+@jit
+def from_enemy(
+    M,
+    delta_x: NDArray[np.float_],
+    delta_y: NDArray[np.float_],
+    dist: NDArray[np.float_],
+    z_i: NDArray[np.float_],
+    i: int,
+) -> None:
     """
     Updates M[x,y] towards the target.
 
@@ -54,9 +69,9 @@ def from_enemy(M, dx, dy, dist, z_i, i):
         s_i * (dd_i / m_ij) * (1 - (Z_i / 2))
     """
     # modify dist to prevent it being zero
-    D = dist[i] + 1e-12
+    dist_i = dist[i] + 1e-12
     # cache the terra + speed influences.
     terrain_tick = (1.0 - (z_i / 2.0)) * M["speed"][i]
     # compute normed directional derivative and update.
-    M["x"][i] -= (dx[i] / D) * terrain_tick
-    M["y"][i] -= (dy[i] / D) * terrain_tick
+    M["x"][i] -= (delta_x[i] / dist_i) * terrain_tick
+    M["y"][i] -= (delta_y[i] / dist_i) * terrain_tick

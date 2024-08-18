@@ -8,10 +8,10 @@ This file contains perlin noise functions for terra.
 """
 
 import numpy as np
-from numba import njit, prange
+from numba import jit
 
 
-@njit
+@jit
 def smooth_noise(noise, x, y, noisewidth=100, noiseheight=100):
     """Determines some smooth noise at point [x, y]"""
     # get fractional part
@@ -32,7 +32,7 @@ def smooth_noise(noise, x, y, noisewidth=100, noiseheight=100):
     return val
 
 
-@njit
+@jit
 def turbulence(noise, x, y, size, dim_x, dim_y):
     """Adds turbulence at point [x, y]"""
     val = 0.0
@@ -43,7 +43,7 @@ def turbulence(noise, x, y, size, dim_x, dim_y):
     return 128 * val / init_size
 
 
-@njit
+@jit
 def create_perlin_map(dim_x, dim_y, scale=30):
     """Defines a perlin map with turbulence (upgrade on gauss map)
 
@@ -56,7 +56,7 @@ def create_perlin_map(dim_x, dim_y, scale=30):
     base_noise = np.random.rand(dim_x, dim_y)
     new_noise = np.random.rand(dim_x, dim_y)
     # set every value in alterable noise map
-    for x in prange(dim_x):
-        for y in prange(dim_y):
+    for x in range(dim_x):
+        for y in range(dim_y):
             new_noise[x, y] = turbulence(base_noise, x, y, scale, dim_x, dim_y)
     return new_noise

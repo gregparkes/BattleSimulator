@@ -5,12 +5,11 @@
 """
 
 import sys
-sys.path.insert(0,"../")
+
+sys.path.insert(0, "../")
 import battlesim as bsm
-import pytest
 
 
 def test_composite_init():
     # valid.
     bsm.Composite("example1", 50)
-    

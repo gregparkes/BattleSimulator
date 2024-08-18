@@ -5,13 +5,14 @@ Created on Thu Oct 10 16:17:14 2019
 
 @author: gparkes
 """
-import sys
-sys.path.insert(0,"../")
-import battlesim as bsm
-
 import pytest
 
+# import local
+import battlesim as bsm
+
+
 def test_define_terrain():
+    """Define Terrain properties."""
     _ = bsm.Terrain()
     # test with bad settings.
     with pytest.raises(TypeError):
@@ -21,24 +22,25 @@ def test_define_terrain():
     with pytest.raises(TypeError):
         bsm.Terrain((0, 10, 0, 10), "hello", "contour")
     with pytest.raises(AttributeError):
-        bsm.Terrain((0, 10, 0, 10), .1, 42)
+        bsm.Terrain((0, 10, 0, 10), 0.1, 42)
     with pytest.raises(AttributeError):
-        bsm.Terrain((0, 10, 0), .1, "contour")
+        bsm.Terrain((0, 10, 0), 0.1, "contour")
     with pytest.raises(TypeError):
         bsm.Terrain((0, 10, 0, 10), -1, "contour")
     with pytest.raises(AttributeError):
-        bsm.Terrain((0, -1, 0, 10), .1, "contour")
+        bsm.Terrain((0, -1, 0, 10), 0.1, "contour")
     with pytest.raises(AttributeError):
-        bsm.Terrain((0, 10, 0, -1), .1, "contour")
+        bsm.Terrain((0, 10, 0, -1), 0.1, "contour")
     with pytest.raises(TypeError):
-        bsm.Terrain((0, [0, 1], "hi", 10), .1, "contour")
+        bsm.Terrain((0, [0, 1], "hi", 10), 0.1, "contour")
     with pytest.raises(AttributeError):
-        bsm.Terrain((0, 10, 0, 10), .1, "hello contour boy")
+        bsm.Terrain((0, 10, 0, 10), 0.1, "hello contour boy")
 
-    bsm.Terrain((0, 10, 0, 10), .1, None)
+    bsm.Terrain((0, 10, 0, 10), 0.1, None)
 
 
 def test_terrain_attributes():
+    """Testing attributes."""
     T = bsm.Terrain()
 
     assert T.Z_ is None, "Z_ should be undefined at this stage"
@@ -50,6 +52,7 @@ def test_terrain_attributes():
 
 
 def test_generate():
+    """Testing the terrain generation."""
     T = bsm.Terrain()
     # good
     T.generate()

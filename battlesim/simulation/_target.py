@@ -31,10 +31,11 @@ passed to the functions.
         -1 if not valid target chosen.
 
 """
-from typing import Callable
+from typing import Callable, Optional
 
 import numpy as np
-from numba import njit
+from numpy.typing import NDArray
+from numba import jit
 
 from battlesim import _mathutils
 
@@ -75,8 +76,8 @@ __all__ = get_function_names() + get_global_function_names()
 ############## AI FUNCTIONS ##############################
 
 
-@njit
-def random(M, enemies, i):
+@jit
+def random(M, enemies: NDArray[np.uint], i: Optional[int] = None) -> int:
     """
     Given enemy candidates who are alive, draw an index of one at random.
     """
@@ -87,8 +88,8 @@ def random(M, enemies, i):
         return -1
 
 
-@njit
-def nearest(M, enemies, i):
+@jit
+def nearest(M, enemies: NDArray[np.uint], i: int) -> int:
     """
     Given enemy candidates who are alive, determine which one is nearest.
     """
@@ -100,8 +101,8 @@ def nearest(M, enemies, i):
         return -1
 
 
-@njit
-def close_weak(M, enemies, i, wtc_ratio=0.7):
+@jit
+def close_weak(M, enemies: NDArray[np.uint], i: int, wtc_ratio: float = 0.7) -> int:
     """
     Given enemy alive candidates, globally determine which one is the weakest
     and closest, using appropriate weighting for each option.
@@ -157,8 +158,8 @@ all units need a new target.
 """
 
 
-@njit
-def global_random(M, group_i):
+@jit
+def global_random(M, group_i: int):
     """Computes a random target for every unit within the M matrix."""
     # define
     sel = M["id"] == group_i
@@ -169,8 +170,8 @@ def global_random(M, group_i):
     return np.random.choice(id_not, sel.sum())
 
 
-@njit
-def global_nearest(M, group_i):
+@jit
+def global_nearest(M, group_i: int):
     """Computes the nearest target for every unit within the M matrix."""
     # define
     selector = M["id"] == group_i
@@ -180,7 +181,9 @@ def global_nearest(M, group_i):
     # only calculate for diaginal indices.
     np.fill_diagonal(dist_matrix_sq, np.max(dist_matrix_sq))
     # sprinkle on random noise
-    dist_matrix_sq += np.random.rand(dist_matrix_sq.shape[0], dist_matrix_sq.shape[0]) / 4.0
+    dist_matrix_sq += (
+        np.random.rand(dist_matrix_sq.shape[0], dist_matrix_sq.shape[0]) / 4.0
+    )
     # get unit IDs that are not equal to this team for enemies.
     (id_not,) = np.where(M["team"] != t)
     (id_is,) = np.where(selector)
@@ -189,8 +192,8 @@ def global_nearest(M, group_i):
     return j
 
 
-@njit
-def global_close_weak(M, group_i, wtc_ratio=0.7):
+@jit
+def global_close_weak(M, group_i: int, wtc_ratio=0.7):
     """Computes the nearest weakest target for every unit within the M matrix."""
     # define
     selector = M["id"] == group_i
@@ -199,7 +202,9 @@ def global_close_weak(M, group_i, wtc_ratio=0.7):
     # calculate distance matrix, with offset to ignore diagonal, with random noise
     dist_matrix_sq = _mathutils.sq_distance_matrix(M["x"], M["y"])
     np.fill_diagonal(dist_matrix_sq, np.max(dist_matrix_sq))
-    dist_matrix_sq += np.random.rand(dist_matrix_sq.shape[0], dist_matrix_sq.shape[0]) / 4.0
+    dist_matrix_sq += (
+        np.random.rand(dist_matrix_sq.shape[0], dist_matrix_sq.shape[0]) / 4.0
+    )
 
     # return the enemy that is closest and lowest HP
     hp_adj = _mathutils.no_mean(hp) * (1.0 - wtc_ratio)

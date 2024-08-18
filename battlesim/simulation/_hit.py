@@ -7,12 +7,15 @@ Created on Tue Oct  1 16:20:15 2019
 
 Performs calculations on the 'hit chance' of various attacks.
 """
+import numpy as np
+from numpy.typing import NDArray
+from numba import jit
 
-from numba import njit
 
-
-@njit
-def basic_chance(M, dist, i, global_penalty=15.0):
+@jit
+def basic_chance(
+    M, dist: NDArray[np.float_], i: int, global_penalty: float = 15.0
+) -> float:
     """
     Hit chance in the range [0..1]
     0 meaning no chance of hitting, 1 meaning perfect accuracy.

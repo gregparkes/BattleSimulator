@@ -8,7 +8,7 @@ Created on Tue Feb 19 15:48:25 2019
 This class handles the primary simulator functions given some data.
 """
 import numpy as np
-from numba import njit, typed
+from numba import jit, typed
 
 from battlesim import _mathutils
 from battlesim.simulation import _ai as AI
@@ -18,7 +18,7 @@ from battlesim.simulation import _ai as AI
 __all__ = ["simulate_battle"]
 
 
-@njit
+@jit
 def _copy_frame(Frames, M, dx, dy, dist, i):
     # copy over data from M into frames.
     Frames["x"][i] = M["x"]
@@ -35,13 +35,12 @@ def _copy_frame(Frames, M, dx, dy, dist, i):
     return
 
 
-@njit
+@jit
 def _loop_units(M, luck, dists, dx, dy, xt, yt, enemy_targets, Z_m):
     """Loops over the units and executes the function."""
     running = True
 
     for i in range(M.shape[0]):
-
         if M["hp"][i] > 0.0:
             # fetch the function 'hit_and_run', 'aggressive' in `_ai.py`, etc.
             # AI-based decision for attack/defend.
@@ -57,7 +56,7 @@ def _loop_units(M, luck, dists, dx, dy, xt, yt, enemy_targets, Z_m):
     return running
 
 
-@njit
+@jit
 def _step_through_update(M, Z, max_step, teams, enemy_targets, bounds, frames):
     t = 0
     running = True
@@ -96,7 +95,7 @@ def _step_through_update(M, Z, max_step, teams, enemy_targets, bounds, frames):
     return t
 
 
-@njit
+@jit
 def _step_through_noframe(M, Z, max_step, teams, enemy_targets, bounds):
     """steps through the simulation."""
     t = 0
